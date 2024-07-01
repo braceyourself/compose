@@ -159,7 +159,7 @@ trait ComposeServices
     private function getDomainName()
     {
         return \Cache::store('array')->rememberForever('compose-' . __FUNCTION__, function () {
-            $env_name = 'COMPOSE_DOMAIN_NAME';
+            $env_name = 'COMPOSE_DOMAIN';
             $value = config('compose.domain');
 
             if (empty($value)) {
