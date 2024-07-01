@@ -1,0 +1,27 @@
+{
+    "name": "braceyourself/compose",
+    "description": "Initialize your application using docker and docker compose",
+    "type": "library",
+    "license": "MIT",
+    "autoload": {
+        "psr-4": {
+            "Braceyourself\\Compose\\": "src/"
+        }
+    },
+    "authors": [
+        {
+            "name": "braceyourself",
+            "email": "ethanabrace@gmail.com"
+        }
+    ],
+    "require": {
+        "symfony/yaml": "^7.1"
+    },
+    "extra": {
+        "laravel": {
+            "providers": [
+                "Braceyourself\\Compose\\ComposeServiceProvider"
+            ]
+        }
+    }
+}

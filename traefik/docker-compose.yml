@@ -1,0 +1,43 @@
+services:
+
+  traefik:
+    image: "traefik:3.0"
+    restart: always
+    container_name: 'traefik.localhost'
+    command:
+        # settings
+      - "--log.level=TRACE"
+      - "--api.insecure=true"
+      - "--providers.docker=true"
+      - "--providers.docker.exposedbydefault=true"
+      - "--providers.docker.network=traefik_default"
+      - "--providers.docker.defaultRule=Host(`{{ .ContainerName }}`)"
+      - "--accesslog=true"
+
+
+        # certificate creation
+        #      - "--certificatesresolvers.resolver.acme.httpchallenge=true"
+        #      - "--certificatesresolvers.resolver.acme.httpchallenge.entrypoint=web"
+        #      - "--certificatesresolvers.resolver.acme.email="
+        #      - "--certificatesresolvers.resolver.acme.storage=/letsencrypt/acme.json"
+        #for testing
+      #- "--certificatesresolvers.resolver.acme.caserver=https://acme-staging-v02.api.letsencrypt.org/directory"
+
+        # entrypoints
+      - "--entrypoints.web.address=:80"
+
+
+        #      - "--entrypoints.websecure.address=:443"
+
+        # redirections
+        #      - "--entrypoints.web.http.redirections.entryPoint.to=websecure"
+        #      - "--entrypoints.web.http.redirections.entryPoint.scheme=https"
+        #      - "--entrypoints.web.http.redirections.entrypoint.permanent=true"
+    labels:
+      - "traefik.http.services.traefik.loadbalancer.server.port=8080"
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - "$HOME/.config/braceyourself/compose/traefik/letsencrypt:/letsencrypt"
+      - "/var/run/docker.sock:/var/run/docker.sock:ro"
