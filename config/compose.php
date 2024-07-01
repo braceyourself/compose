@@ -3,10 +3,11 @@
 return [
     'domain' => env('COMPOSE_DOMAIN'),
     'php' => env('COMPOSE_PHP_VERSION'),
-    'user_id' => 1000,
-    'group_id' => 1000,
-    'traefik_network' => 'traefik_default',
+    'user_id' => env('COMPOSE_USER_ID', 1000),
+    'group_id' => env('COMPOSE_GROUP_ID', 1000),
     'traefik_router' => env('COMPOSE_ROUTER'),
+    'traefik_network' => 'traefik_default',
+
     /***
      * Override these settings to modify your project
      */
