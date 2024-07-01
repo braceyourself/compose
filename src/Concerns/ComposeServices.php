@@ -246,6 +246,8 @@ trait ComposeServices
 
     private function getComposeConfig()
     {
+        Cache::store('array')->clear();
+
         return Yaml::dump([
             'services' => collect(config('compose.services'))
                 ->mapWithKeys($this->getServiceDefinition(...))
