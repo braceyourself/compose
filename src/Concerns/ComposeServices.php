@@ -59,7 +59,7 @@ trait ComposeServices
                 'PROXY_PASS_PORT' => '9000',
             ],
             'volumes'        => [
-                './nginx.conf:/etc/nginx/templates/default.conf.template',
+                __DIR__.'/../../build/nginx.conf:/etc/nginx/templates/default.conf.template',
             ],
             'depends_on'     => ['php'],
             'labels'         => [
