@@ -172,6 +172,19 @@ trait ComposeServices
         });
     }
 
+    private function storeEnv($key, $value)
+    {
+        $this->warn("{$key}={$value}");
+
+        if (confirm("Would you like to add this to your .env file?")) {
+            if (str(file_get_contents('.env'))->contains("{$key}="))
+                Process::run("sed -i 's/{$key}=.*/$key={$value}/' .env");
+            else {
+                Process::run("echo '\n{$key}={$value}' >> .env");
+            }
+        }
+    }
+
     private function getGroupId()
     {
         return \Cache::store('array')->rememberForever('compose-' . __FUNCTION__, function () {

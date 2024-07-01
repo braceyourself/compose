@@ -15,7 +15,9 @@
         }
     ],
     "require": {
-        "symfony/yaml": "^7.1"
+        "symfony/yaml": "^7.1",
+        "illuminate/support": "^10|^11",
+        "laravel/prompts": "^0.1"
     },
     "extra": {
         "laravel": {
