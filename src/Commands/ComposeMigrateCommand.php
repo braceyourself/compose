@@ -4,42 +4,25 @@ namespace Braceyourself\Compose\Commands;
 
 use Illuminate\Console\Command;
 use Symfony\Component\Yaml\Yaml;
+use Illuminate\Support\Stringable;
 use Illuminate\Support\Facades\Process;
-use Braceyourself\Compose\Concerns\ComposeServices;
+use Braceyourself\Compose\Facades\Compose;
+use Braceyourself\Compose\Concerns\CreatesComposeServices;
 use function Laravel\Prompts\confirm;
 
 class ComposeMigrateCommand extends Command
 {
-    use ComposeServices;
+    use CreatesComposeServices;
 
-    /**
-     * The name and signature of the console command.
-     *
-     * @var string
-     */
     protected $signature = 'compose:migrate';
-
-    /**
-     * The console command description.
-     *
-     * @var string
-     */
     protected $description = 'Run the migrations';
 
-    /**
-     * Execute the console command.
-     */
+
     public function handle()
     {
-        if (str(exec('alias | grep artisan='))->isEmpty()) {
-            $this->warn("If you would like to run 'artisan migrate', like normal, you should add 'alias artisan=\"docker compose exec -T php php artisan\"' to your shell configuration file (e.g. '.bashrc', '.zshrc', etc.)");
-        }
-
-        $this->info(
-            Process::tty()
-                ->run("echo '{$this->getComposeConfig()}' | docker compose -f - exec -T php php artisan migrate")
-                ->throw()
-                ->output()
+        Process::tty()->run(
+            Compose::artisanCommand("migrate"),
+            fn($type, $output) => $this->info($output)
         );
     }
 }

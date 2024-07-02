@@ -5,17 +5,33 @@ namespace Braceyourself\Compose\Concerns;
 use Symfony\Component\Yaml\Yaml;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\Process;
+use Illuminate\Support\Facades\Artisan;
 use function Laravel\Prompts\text;
+use function Laravel\Prompts\info;
+use function Laravel\Prompts\spin;
 use function Laravel\Prompts\select;
 use function Laravel\Prompts\confirm;
+use function Laravel\Prompts\warning;
 
-trait ComposeServices
+trait CreatesComposeServices
 {
     use ConfiguresTraefik;
+    use InteractsWithDocker;
+    use ModifiesComposeConfiguration;
+    use BuildsDockerfile;
 
-    public function getServiceDefinition(array $config, string $service_name)
+    public function getServiceDefinition($config, string $service_name)
     {
+        if ($config === false) {
+            return [];
+        }
+
+        if ($config === true) {
+            $config = [];
+        }
+
         return [$service_name => match ($service_name) {
             'php' => $this->buildPhpService($config),
             'nginx' => $this->buildNginxService($config),
@@ -27,7 +43,6 @@ trait ComposeServices
             'horizon' => $this->buildHorizonService($config),
         }];
     }
-
 
     private function buildPhpService(array $config): array
     {
@@ -41,15 +56,17 @@ trait ComposeServices
             'environment' => [
                 'SERVICE' => 'php'
             ]
-        ])->merge($config)->toArray();
+        ])->merge($config)
+            ->except('extensions', 'packages', 'memory_limit', 'version')
+            ->toArray();
     }
 
 
     private function buildNginxService($config): array
     {
         return collect([
-            'container_name' => $this->getDomainName(),
             'image'          => 'nginx',
+            'container_name' => $this->getDomainName(),
             'build'          => [
                 'target' => 'nginx'
             ],
@@ -59,7 +76,7 @@ trait ComposeServices
                 'PROXY_PASS_PORT' => '9000',
             ],
             'volumes'        => [
-                __DIR__.'/../../build/nginx.conf:/etc/nginx/templates/default.conf.template',
+                __DIR__ . '/../../build/nginx.conf:/etc/nginx/templates/default.conf.template',
             ],
             'depends_on'     => ['php'],
             'labels'         => [
@@ -71,8 +88,44 @@ trait ComposeServices
 
     private function buildNpmService($config): array
     {
+        if (file_exists(base_path('vite.config.js'))) {
+            $vite_config_content = str(file_get_contents(base_path('vite.config.js')));
+            // match contents of defineConfig({ ... })
+            if (!$vite_config_content->contains('server:')) {
+                warning("It looks like you're using Vite, but you haven't defined server settings in your vite.config.js file.");
+                if (confirm("Would you like to add server settings to your vite.config.js file?")) {
+                    $vite_config_content = $vite_config_content->replace(
+                        'defineConfig({',
+                        <<<EOF
+                        defineConfig({
+                            server: { 
+                                hmr: 'hmr.{$this->getDomainName()}', 
+                                port: 80 
+                            },
+                        EOF
+                    );
+
+                    file_put_contents(base_path('vite.config.js'), $vite_config_content);
+
+                    info("HMR Server settings have been added to your vite.config.js file.");
+                    warning("Be sure to review the settings to ensure they are correct.");
+                }
+            }
+        }
+
+        $image = data_get($config, 'image', 'node');
+
+        // ensure node_modules is installed
+        if (!file_exists(base_path('node_modules'))) {
+            spin(function () use ($image) {
+                Process::tty()
+                    ->run("docker run --rm -u {$this->getUserId()} -v $(pwd):/var/www/html -w /var/www/html {$image} npm install")
+                    ->throw();
+            }, "Installing node_modules...");
+        }
+
         return collect([
-            'image'          => 'node',
+            'image'          => $image,
             'container_name' => "hmr.{$this->getDomainName()}",
             'user'           => "{$this->getUserId()}:{$this->getGroupId()}",
             'working_dir'    => '/var/www/html',
@@ -90,6 +143,29 @@ trait ComposeServices
 
     private function buildDatabaseService($config): array
     {
+        $env = str(file_get_contents('.env'));
+        if($env->contains(['# DB_', '#DB_']) && confirm("There are commented DB_ values in your .env. Would you like to update them?")){
+            // loop over the env DB_* values
+            $env->explode("\n")->each(function ($line) {
+                $line = str($line);
+                if ($line->startsWith('#') && $line->contains('DB_')) {
+                    $key = $line->before('=')->ltrim('# ');
+                    $value = $line->after('=');
+
+                    $this->setEnv($key, text($key, default: $value), force: true);
+
+                    // uncomment
+                    Process::run("sed -i '/{$key}/s/^{$line->before('DB_')}//' .env");
+                }
+            });
+        }
+
+        Artisan::call('config:clear');
+
+        if (($db_default = config('database.default')) != 'mysql') {
+            return [];
+        }
+
         return collect([
             'image'       => 'mysql',
             'restart'     => 'always',
@@ -156,94 +232,6 @@ trait ComposeServices
         ])->merge($config)->toArray();
     }
 
-    private function getDomainName()
-    {
-        return \Cache::store('array')->rememberForever('compose-' . __FUNCTION__, function () {
-            $env_name = 'COMPOSE_DOMAIN';
-            $value = config('compose.domain');
-
-            if (empty($value)) {
-                $value = text("What domain name would you like to use?", hint: "example.com");
-                $this->storeEnv($env_name, $value);
-            }
-
-
-            return $value;
-        });
-    }
-
-    private function storeEnv($key, $value)
-    {
-        $this->warn("{$key}={$value}");
-
-        if (confirm("Would you like to add this to your .env file?")) {
-            if (str(file_get_contents('.env'))->contains("{$key}="))
-                Process::run("sed -i 's/{$key}=.*/$key={$value}/' .env");
-            else {
-                Process::run("echo '\n{$key}={$value}' >> .env");
-            }
-        }
-    }
-
-    private function getGroupId()
-    {
-        return \Cache::store('array')->rememberForever('compose-' . __FUNCTION__, function () {
-            $value = config('compose.group_id');
-            $value ??= str(Process::run('id -g')->throw()->output())->trim()->value();
-
-            return $value;
-        });
-    }
-
-    private function getUserId()
-    {
-        return \Cache::store('array')->rememberForever('compose-' . __FUNCTION__, function () {
-            $value = config('compose.user_id');
-            $value ??= str(Process::run('id -u')->throw()->output())->trim()->value();
-
-            return $value;
-        });
-    }
-
-    private function getPhpImageName()
-    {
-        return \Cache::store('array')->rememberForever('compose-php-image-name', function () {
-            $image = config('compose.services.php.image');
-
-            if (empty($image)) {
-                $app_dir = str(base_path())->basename()->slug();
-                $php_version = $this->getPhpVersion();
-                $image = "$app_dir:php-{$php_version}";
-
-                $this->setEnv('COMPOSE_PHP_IMAGE', $image);
-            }
-
-            return $image;
-        });
-    }
-
-    private function getPhpVersion()
-    {
-        return Cache::store('array')->rememberForever('compose-' . __FUNCTION__, function () {
-            return config('compose.php') ?: tap(select("Select PHP Version:", $this->getPhpVersions()), function ($version) {
-                $this->setEnv('COMPOSE_PHP_VERSION', $version);
-            });
-        });
-    }
-
-    private function setEnv($key, $value)
-    {
-        $this->warn("{$key}={$value}");
-
-        if (confirm("Would you like to add this to your .env file?")) {
-            if (str(file_get_contents('.env'))->contains("{$key}="))
-                Process::run("sed -i 's/{$key}=.*/$key={$value}/' .env");
-            else {
-                Process::run("echo '\n{$key}={$value}' >> .env");
-            }
-        }
-    }
-
     private function getComposeConfig()
     {
         Cache::store('array')->clear();
@@ -251,6 +239,7 @@ trait ComposeServices
         return Yaml::dump([
             'services' => collect(config('compose.services'))
                 ->mapWithKeys($this->getServiceDefinition(...))
+                ->filter()
                 ->toArray(),
             'networks' => [
                 'traefik' => [
@@ -265,21 +254,33 @@ trait ComposeServices
     private function getPhpVolumes()
     {
         return [
-            ...(fn(): array => app()->environment('local') ? [
-                // local volumes
-                './:/var/www/html',
-            ] : [
-                // production volumes
-                './.env:/var/www/html/.env'
-            ])(),
+            ...(fn(): array => app()->environment('local')
+                ? $this->getLocalPhpVolumes()
+                : [
+                    // production volumes
+                    './.env:/var/www/html/.env'
+                ])(),
             // always
             '$HOME/.config/psysh:/var/www/.config/psysh',
         ];
     }
 
-    private function getTraefikRouterName()
+    private function getLocalPhpVolumes(): array
     {
-        return str(base_path())->basename()->slug();
+        $volumes = ['./:/var/www/html'];
+
+        // check if any local paths are defined in the repository section of composer.json
+        if (file_exists($path = base_path('composer.json'))) {
+            $volumes = collect(data_get(json_decode(file_get_contents($path), true), 'repositories', []))
+                ->where('type', 'path')
+                ->map->url
+                // map it directly to the container
+                ->map(fn($path) => "$path:$path")
+                ->merge($volumes)
+                ->toArray();
+        }
+
+        return $volumes;
     }
 
     private function getPhpVersions()
@@ -291,58 +292,4 @@ trait ComposeServices
             ->mapWithKeys(fn($version) => [$version => $version])
             ->sortDesc();
     }
-
-    private function ensureDockerIsInstalled()
-    {
-        try {
-            Process::run('docker --version')->throw();
-        } catch (\Throwable $th) {
-
-            if (!confirm("Docker needs to be installed on this system. Would you like to install it now?")) {
-                return;
-            }
-
-            // install docker
-            Process::run('curl -fsSL https://get.docker.com -o /tmp/get-docker.sh')->throw();
-            Process::run('sh /tmp/get-docker.sh')->throw();
-        }
-    }
-
-    private function getDockerfile()
-    {
-        return <<<DOCKERFILE
-        FROM php:{$this->getPhpVersion()}-fpm
-        RUN apt-get update && apt-get install -y git
-        
-        USER root
-        ENV PATH="/var/www/.composer/vendor/bin:\$PATH"
-        ENV PHP_MEMORY_LIMIT=512M
-        WORKDIR /var/www/html
-        ADD https://github.com/mlocati/docker-php-extension-installer/releases/latest/download/install-php-extensions /usr/local/bin
-        
-        RUN apt-get update \
-            && apt install -y {$this->getServerPackages()} \
-            && rm -rf /var/lib/apt \
-            && chmod +x /usr/local/bin/install-php-extensions && sync
-            
-        RUN install-php-extensions gd bcmath mbstring opcache xsl imap zip ssh2 yaml pcntl intl sockets exif redis pdo_mysql pdo_pgsql sqlsrv pdo_sqlsrv soap @composer \
-            && groupmod -og {$this->getGroupId()} www-data \
-            && usermod -u {$this->getGroupId()} www-data
-            
-        # create entrypoint file
-        COPY php_entrypoint.sh /usr/local/bin/entrypoint.sh
-        RUN chmod +x /usr/local/bin/entrypoint.sh
-
-        USER www-data
-        
-        ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]
-        
-        DOCKERFILE;
-    }
-
-    private function getServerPackages()
-    {
-        return 'git ffmpeg jq iputils-ping poppler-utils wget';
-    }
-
 }

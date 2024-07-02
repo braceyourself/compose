@@ -3,113 +3,64 @@
 namespace Braceyourself\Compose\Commands;
 
 use Illuminate\Console\Command;
-use Symfony\Component\Yaml\Yaml;
 use Illuminate\Support\Facades\Process;
-use Braceyourself\Compose\Concerns\ComposeServices;
+use Braceyourself\Compose\Facades\Compose;
+use Braceyourself\Compose\Concerns\CreatesComposeServices;
 use function Laravel\Prompts\confirm;
 
 class ComposeUpCommand extends Command
 {
-    use ComposeServices;
+    use CreatesComposeServices;
 
-    /**
-     * The name and signature of the console command.
-     *
-     * @var string
-     */
     protected $signature = 'compose:up 
-                                {--d|detatch : Detach from the terminal}
+                                {--d|detach : Detach from the terminal}
                                 {--build : Build the images before starting the services}
                                 {--force-recreate : Force recreate the services}
                                 {--t|timeout= : Timeout in seconds}
                                 {--remove-orphans}
     ';
 
-    /**
-     * The console command description.
-     *
-     * @var string
-     */
     protected $description = 'Spin up the services';
 
-    /**
-     * Execute the console command.
-     */
     public function handle()
     {
-        $this->info("Starting the services...");
-
         $this->ensureTraefikIsRunning();
 
         $removeOrphans = $this->option('remove-orphans') ? '--remove-orphans' : '';
         $forceRecreate = $this->option('force-recreate') ? '--force-recreate' : '';
-        $timeout = ($timeout = $this->option('timeout')) !== null ? "--timeout $timeout" : '';
+        $timeout = ($timeout = $this->option('timeout')) !== null ? "--timeout $timeout" : '--timeout=0';
 
-        $build_dir = __DIR__ . '/../../build';
-        file_put_contents("$build_dir/Dockerfile", $this->getDockerfile());
+
+        if ($this->option('build')) {
+            $this->createDockerfile();
+            $this->runBuild();
+        }
 
         $this->info(
             Process::tty()
-                ->forever()
-                ->run("docker build $build_dir -t {$this->getPhpImageName()}")
+                ->run(Compose::command("up -d $removeOrphans $forceRecreate $timeout"))
                 ->throw()
                 ->output()
         );
 
-        $this->info(
-            Process::tty()
-                ->run("echo '{$this->getComposeConfig()}' | docker compose -f - up -d $removeOrphans $forceRecreate $timeout")
-                ->throw()
-                ->output()
-        );
-
-        if (confirm("Run migrations?")) {
+        if ($this->hasPendingMigrations() && confirm("There are pending migrations. Would you like to run them?")) {
             $this->call('compose:migrate');
         }
     }
 
-    private function getDockerfile()
+    private function hasPendingMigrations()
     {
-        return <<<DOCKERFILE
-        FROM php:{$this->getPhpVersion()}-fpm
-        
-        USER root
-        ENV PATH="/var/www/.composer/vendor/bin:\$PATH"
-        ENV PHP_MEMORY_LIMIT={$this->getPhpMemoryLimit()}
-        WORKDIR /var/www/html
-        ADD https://github.com/mlocati/docker-php-extension-installer/releases/latest/download/install-php-extensions /usr/local/bin
-        
-        RUN apt-get update \
-            && apt install -y {$this->getServerPackages()} \
-            && rm -rf /var/lib/apt \
-            && chmod +x /usr/local/bin/install-php-extensions && sync
-            
-        RUN install-php-extensions {$this->getPhpExtensions()} @composer \
-            && groupmod -og {$this->getGroupId()} www-data \
-            && usermod -u {$this->getUserId()} www-data
-            
-        COPY php_entrypoint.sh /usr/local/bin/entrypoint.sh
-        RUN chmod +x /usr/local/bin/entrypoint.sh
+        $hasPendingMigrations = false;
 
-        USER www-data
-        
-        ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]
-        
-        DOCKERFILE;
-    }
+        Process::run(
+            Compose::artisanCommand("migrate:status"),
+            function ($type, $output) use (&$hasPendingMigrations) {
+                if (str($output)->trim()->endsWith('Pending')) {
+                    $hasPendingMigrations = true;
+                }
+            }
+        );
 
-    private function getServerPackages()
-    {
-        return 'git ffmpeg jq iputils-ping poppler-utils wget';
-    }
-
-    private function getPhpExtensions()
-    {
-        return 'gd bcmath mbstring opcache xsl imap zip ssh2 yaml pcntl intl sockets exif redis pdo_mysql pdo_pgsql sqlsrv pdo_sqlsrv soap';
-    }
-
-    private function getPhpMemoryLimit()
-    {
-        return '512M';
+        return $hasPendingMigrations;
     }
 }

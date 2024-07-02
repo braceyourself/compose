@@ -37,4 +37,8 @@ trait ConfiguresTraefik
             });
     }
 
+    private function getTraefikRouterName()
+    {
+        return str(base_path())->basename()->slug();
+    }
 }
