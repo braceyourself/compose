@@ -1,19 +1,19 @@
 <?php
 
 return [
-    'domain'           => env('COMPOSE_DOMAIN'),
-    'user_id'          => env('COMPOSE_USER_ID', 1000),
-    'group_id'         => env('COMPOSE_GROUP_ID', 1000),
+    'domain'   => env('COMPOSE_DOMAIN'),
+    'user_id'  => env('COMPOSE_USER_ID', 1000),
+    'group_id' => env('COMPOSE_GROUP_ID', 1000),
 
     /***
      * Override these settings to modify your project
      */
-    'services'         => [
+    'services' => [
         'php'       => [
-            'image' => env('COMPOSE_PHP_IMAGE'),
-            'version' => env('COMPOSE_PHP_VERSION'),
+            'image'        => env('COMPOSE_PHP_IMAGE'),
+            'version'      => env('COMPOSE_PHP_VERSION'),
             'memory_limit' => env('COMPOSE_PHP_MEMORY_LIMIT', '512M'),
-            'extensions' => [
+            'extensions'   => [
                 'gd',
                 'bcmath',
                 'mbstring',
@@ -34,7 +34,7 @@ return [
 //                'pdo_sqlsrv',
 //                'soap',
             ],
-            'packages' => [
+            'packages'     => [
                 'git',
                 'ffmpeg',
                 'jq',
@@ -43,12 +43,29 @@ return [
                 'wget',
             ]
         ],
-        'scheduler' => app()->environment('production'),
-        'horizon'   => app()->environment('production'),
+        'scheduler' => [
+            'profiles' => ['production']
+        ],
+        'horizon'   => [
+            'profiles' => ['production']
+        ],
         'nginx'     => [],
         'npm'       => [],
         'mysql'     => [],
-        'redis'     => app()->environment('production'),
-        'mailhog'   => app()->environment('local'),
+        'redis'     => [
+            'profiles' => ['production']
+        ],
+        'mailhog'   => [
+            'profiles' => ['local']
+        ],
     ],
+
+    'deploy' => [
+        'host'                => env('COMPOSE_DEPLOY_HOST'),
+        'user'                => env('COMPOSE_DEPLOY_USER'),
+        'path'                => env('COMPOSE_DEPLOY_PATH'),
+        'password'            => env('COMPOSE_DEPLOY_PASSWORD'),
+        'docker_hub_username' => env('DOCKER_HUB_USERNAME'),
+        'docker_hub_password' => env('DOCKER_HUB_PASSWORD'),
+    ]
 ];

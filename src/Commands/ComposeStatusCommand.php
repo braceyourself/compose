@@ -20,7 +20,7 @@ class ComposeStatusCommand extends Command
     {
         $this->info(
             Process::tty()
-                ->run(Compose::command("ps"))
+                ->run(Compose::buildCommand("ps"))
                 ->throw()
                 ->output()
         );

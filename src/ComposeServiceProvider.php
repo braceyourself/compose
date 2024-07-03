@@ -11,12 +11,19 @@ class ComposeServiceProvider extends ServiceProvider
     public function boot(): void
     {
         $this->mergeConfigFrom(__DIR__ . '/../config/compose.php', 'compose');
+
+        $this->publishes([
+            __DIR__ . '/../config/compose.php' => config_path('compose.php'),
+        ]);
     }
 
     public function register(): void
     {
         $this->app->bind('compose', function () {
-            return new Compose();
+            return new DockerComposeProcess();
+        });
+        $this->app->bind('docker', function () {
+            return new DockerProcess();
         });
 
         $this->registerCommandsIn(__DIR__ . '/Commands');

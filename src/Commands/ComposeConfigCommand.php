@@ -20,7 +20,7 @@ class ComposeConfigCommand extends Command
         $services = collect($this->argument('services'))->join(' ');
 
         Process::tty()
-            ->run(Compose::command("config $services"))
+            ->run(Compose::buildCommand("config $services"))
             ->throw();
     }
 }

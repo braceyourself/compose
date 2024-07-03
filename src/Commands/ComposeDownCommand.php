@@ -20,7 +20,7 @@ class ComposeDownCommand extends Command
     {
         $this->info(
             Process::tty()
-                ->run(Compose::command("down -t0"))
+                ->run(Compose::buildCommand("down -t0"))
                 ->output()
         );
     }

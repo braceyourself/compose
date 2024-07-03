@@ -21,7 +21,7 @@ class ComposeMigrateCommand extends Command
     public function handle()
     {
         Process::tty()->run(
-            Compose::artisanCommand("migrate"),
+            Compose::buildArtisanCommand("migrate"),
             fn($type, $output) => $this->info($output)
         );
     }

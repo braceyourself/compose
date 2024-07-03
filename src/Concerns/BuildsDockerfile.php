@@ -6,28 +6,10 @@ use Illuminate\Support\Facades\Process;
 
 trait BuildsDockerfile
 {
-    private function createDockerfile()
-    {
-        $path = __DIR__ . "/../../build/Dockerfile";
-
-        return file_put_contents($path, $this->getDockerfile());
-    }
-
-    private function runBuild()
-    {
-        $context = __DIR__ . "/../../build";
-        $tag = $this->getPhpImageName();
-
-        Process::tty()
-            ->forever()
-            ->run("docker build $context -t {$tag}", fn($type, $output) => $this->info($output))
-            ->throw();
-    }
-
     private function getDockerfile()
     {
         return <<<DOCKERFILE
-        FROM php:{$this->getPhpVersion()}-fpm
+        FROM php:{$this->getPhpVersion()}-fpm AS php
         
         USER root
         ENV PATH="/var/www/.composer/vendor/bin:\$PATH"
@@ -50,6 +32,38 @@ trait BuildsDockerfile
         USER www-data
         
         ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]
+        
+        ### npm
+        FROM node AS npm
+        WORKDIR /var/www/html
+        
+        # set node user and group id
+        RUN groupmod -og {$this->getGroupId()} node \
+            && usermod -u {$this->getUserId()} -g {$this->getGroupId()} node \
+            && chown -R node:node /var/www
+        
+        USER node
+        
+        COPY --chown=node:node app.tar /var/www
+        
+        RUN tar -xf /var/www/app.tar "./package.json" \
+            && npm install \
+            && tar -xf /var/www/app.tar "./vite.config.js" \
+            && tar -xf /var/www/app.tar "./resources" \
+            && tar -xf /var/www/app.tar "./public" \
+            && npm run build
+        
+         
+        ### app
+        FROM php AS app
+        
+        ADD app.tar /var/www/html
+        COPY --chown=www-data:www-data --from=npm /var/www/html/public /var/www/html/public
+        
+        ### nginx
+        FROM nginx AS nginx
+        COPY nginx.conf /etc/nginx/templates/default.conf.template
+        COPY --from=app /var/www/html/public /var/www/html/public
         
         DOCKERFILE;
     }

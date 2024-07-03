@@ -5,12 +5,12 @@ namespace Braceyourself\Compose\Facades;
 use Illuminate\Support\Facades\Facade;
 
 /**
- * @mixin \Braceyourself\Compose\DockerComposeProcess
+ * @mixin \Braceyourself\Compose\DockerProcess
  */
-class Compose extends Facade
+class Docker extends Facade
 {
     protected static function getFacadeAccessor()
     {
-        return 'compose';
+        return 'docker';
     }
 }

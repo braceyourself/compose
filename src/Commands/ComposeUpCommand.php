@@ -24,6 +24,9 @@ class ComposeUpCommand extends Command
 
     public function handle()
     {
+        $this->getPhpVersion();
+        $this->getPhpImageName();
+
         $this->ensureTraefikIsRunning();
 
         $removeOrphans = $this->option('remove-orphans') ? '--remove-orphans' : '';
@@ -32,35 +35,26 @@ class ComposeUpCommand extends Command
 
 
         if ($this->option('build')) {
-            $this->createDockerfile();
-            $this->runBuild();
+            $this->call('compose:build');
         }
 
-        $this->info(
-            Process::tty()
-                ->run(Compose::command("up -d $removeOrphans $forceRecreate $timeout"))
-                ->throw()
-                ->output()
-        );
+        $run_migrations = $this->hasPendingMigrations() && confirm("There are pending migrations. Would you like to run them?");
 
-        if ($this->hasPendingMigrations() && confirm("There are pending migrations. Would you like to run them?")) {
-            $this->call('compose:migrate');
+        Compose::tty()->run("up -d $removeOrphans $forceRecreate $timeout");
+
+        if ($run_migrations) {
+            Compose::runArtisanCommand("migrate");
         }
+
     }
 
     private function hasPendingMigrations()
     {
-        $hasPendingMigrations = false;
+        $output = Compose::runArtisanCommand("migrate:status")->output();
 
-        Process::run(
-            Compose::artisanCommand("migrate:status"),
-            function ($type, $output) use (&$hasPendingMigrations) {
-                if (str($output)->trim()->endsWith('Pending')) {
-                    $hasPendingMigrations = true;
-                }
-            }
-        );
-
-        return $hasPendingMigrations;
+        return str($output)->contains([
+            'Pending',
+            'Migration table not found'
+        ]);
     }
 }

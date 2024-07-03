@@ -10,7 +10,7 @@ use function Laravel\Prompts\confirm;
 
 trait ModifiesComposeConfiguration
 {
-    use ModifiesEnvFile;
+    use InteractsWithEnvFile;
 
     private function getOrSetConfig($key, callable $set)
     {
@@ -67,7 +67,8 @@ trait ModifiesComposeConfiguration
             function () {
                 $app_dir = str(base_path())->basename()->slug();
                 $php_version = $this->getPhpVersion();
-                $image = "$app_dir:php-{$php_version}";
+                $hub_username = $this->getDockerHubUsername();
+                $image = "$hub_username/$app_dir:php-{$php_version}";
 
                 return $this->setEnv('COMPOSE_PHP_IMAGE',
                     text("PHP Image Name:", default: $image, hint: "Please confirm the PHP image name")

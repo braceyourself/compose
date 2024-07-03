@@ -27,7 +27,7 @@ class ComposeLogsCommand extends Command
 
         $this->info(
             Process::tty()
-                ->run(Compose::command("logs $follow $services"))
+                ->run(Compose::buildCommand("logs $follow $services"))
                 ->throw()
                 ->output()
         );
