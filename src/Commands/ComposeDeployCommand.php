@@ -83,7 +83,8 @@ class ComposeDeployCommand extends Command
         echo '{$password}' | docker login -u {$username} --password-stdin
         echo ""
         
-        docker run --rm --user=$(id -u) -i --entrypoint=composer -v '{$path}/vendor:/var/www/html/vendor' {$this->getPhpImageName()} install
+        
+        docker run --pull always --rm --user=$(id -u) -i --entrypoint=composer -v '{$path}/vendor:/var/www/html/vendor' {$this->getPhpImageName()} install
         BASH . "'")->throw();
     }
 
