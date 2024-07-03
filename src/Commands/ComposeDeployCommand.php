@@ -41,8 +41,7 @@ class ComposeDeployCommand extends Command
         $path = $this->getOrSetConfig('compose.deploy.path', fn() => $this->setEnv('COMPOSE_DEPLOY_PATH', text('What is the path of the deployment server?')));
         //$password = $this->getOrSetConfig('compose.deploy.password', fn() => $this->setEnv('COMPOSE_DEPLOY_PASSWORD', password("Enter the password for $user@$host")));
 
-//        spin(fn() => $this->call('compose:build'), 'Building images');
-//        spin(fn() => $this->call('compose:push'), 'Pushing images to docker hub');
+        $this->call('compose:build', ['--push' => true]);
 
 
 //        ssh -q $HOST [[ -f $FILE_PATH ]] && echo "File exists" || echo "File does not exist";
@@ -73,18 +72,18 @@ class ComposeDeployCommand extends Command
 
 
         Process::tty()->timeout(120)->run("ssh {$user}@{$host} '" . <<<BASH
-            #!/bin/bash
-            set -e
+        #!/bin/bash
+        set -e
 
-            mkdir -p {$path} && cd {$path}
-            cd {$path}
+        mkdir -p {$path}/vendor && cd {$path}
+        cd {$path}
 
-            echo "Logging in to docker hub..."
+        echo "Logging in to docker hub..."
 
-            echo '{$password}' | docker login -u {$username} --password-stdin
-            echo ""
-            
-            docker run -v '{$path}/vendor:/var/www/html/vendor' --rm --entrypoint=composer {$this->getPhpImageName()} install
+        echo '{$password}' | docker login -u {$username} --password-stdin
+        echo ""
+        
+        docker run --rm --user=$(id -u) -i --entrypoint=composer -v '{$path}/vendor:/var/www/html/vendor' {$this->getPhpImageName()} install
         BASH . "'")->throw();
     }
 

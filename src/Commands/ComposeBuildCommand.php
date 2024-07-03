@@ -34,14 +34,16 @@ class ComposeBuildCommand extends Command
             'Building PHP image'
         );
 
-        spin(fn() => Docker::execute("build --target=nginx $context -t {$this->getNginxImageName()}"),
+        if ($this->option('push')) {
+            $this->call('compose:push', ['service' => 'php']);
+        }
+
+        spin(fn() => Docker::execute("build --target=nginx $context -t {$this->getNginxImageName()}")->output(),
             'Building Nginx image'
         );
 
         if ($this->option('push')) {
-            spin(fn() => $this->call('compose:push'),
-                'Pushing images to docker hub'
-            );
+            $this->call('compose:push', ['service' => 'nginx']);
         }
     }
 }

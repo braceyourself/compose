@@ -10,17 +10,21 @@ use Braceyourself\Compose\Concerns\HasPhpServices;
 use Braceyourself\Compose\Concerns\BuildsDockerfile;
 use Braceyourself\Compose\Concerns\CreatesComposeServices;
 use Braceyourself\Compose\Concerns\ModifiesComposeConfiguration;
+use function Laravel\Prompts\spin;
 use function Laravel\Prompts\confirm;
 
 class ComposePushCommand extends Command
 {
     use CreatesComposeServices;
 
-    protected $signature = 'compose:push';
+    protected $signature = 'compose:push {service?}';
     protected $description = 'Build the services';
 
     public function handle()
     {
-        Compose::run('push');
+        $service = $this->argument('service');
+        spin(fn() => Compose::run("push {$service}"),
+            empty($service) ? 'Pushing images to docker hub' : "Pushing $service image to docker hub"
+        );
     }
 }
