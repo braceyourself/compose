@@ -26,7 +26,6 @@ class ComposeUpCommand extends Command
     {
         $this->getPhpVersion();
         $this->getPhpImageName();
-
         $this->ensureTraefikIsRunning();
 
         $removeOrphans = $this->option('remove-orphans') ? '--remove-orphans' : '';
