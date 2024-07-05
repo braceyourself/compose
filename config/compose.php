@@ -51,7 +51,9 @@ return [
         ],
         'nginx'     => [],
         'npm'       => [],
-        'mysql'     => [],
+        'mysql'     => [
+            'expose_on_port' => env('COMPOSE_DB_PORT'),
+        ],
         'redis'     => [
             'profiles' => ['production']
         ],

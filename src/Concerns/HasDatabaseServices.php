@@ -13,7 +13,7 @@ trait HasDatabaseServices
     private function databaseServiceDefinition($config): array
     {
         $env = str(file_get_contents('.env'));
-        if($env->contains(['# DB_', '#DB_']) && confirm("There are commented DB_ values in your .env. Would you like to update them?")){
+        if ($env->contains(['# DB_', '#DB_']) && confirm("There are commented DB_ values in your .env. Would you like to update them?")) {
             // loop over the env DB_* values
             $env->explode("\n")->each(function ($line) {
                 $line = str($line);
@@ -51,6 +51,23 @@ trait HasDatabaseServices
             'volumes'     => [
                 './database/.data:/var/lib/mysql',
             ],
-        ])->merge($config)->toArray();
+            ...$this->getPortMappings()
+        ])->merge($config)
+            // ignore ports mapping if empty
+            ->filter(fn($v, $k) => $k == 'ports' && empty($v))
+            ->toArray();
+    }
+
+    private function getPortMappings(): array
+    {
+        if ($host_port = config('compose.services.mysql.expose_on_port')) {
+            return [
+                'ports' => [
+                    "{$host_port}:3306"
+                ]
+            ];
+        }
+
+        return [];
     }
 }
