@@ -33,7 +33,7 @@ class ComposeBuildCommand extends Command
         }
 
         // put contents of $base into tar, overwriting if present, excluding lines found in .dockerignore
-        Process::run("tar -cf $context/app.tar --exclude-vcs --exclude-from='$context/.dockerignore' -C $app_path .")->throw();
+        Process::run("tar -cf $context/app.tar --ignore-failed-read --exclude-vcs --exclude-from='$context/.dockerignore' -C $app_path .")->throw();
 
         file_put_contents("$context/Dockerfile", $this->getDockerfile());
 
