@@ -1,3 +1,5 @@
 vendor
 node_modules
 public/hot
+database/.data
+database/mysql-data
