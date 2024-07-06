@@ -72,7 +72,7 @@ class ComposeDeployCommand extends Command
 
         }
 
-        $compose_yaml = escapeshellarg($this->getComposeYaml());
+        $compose_yaml = $this->getComposeYaml();
 
         Process::tty()->timeout(120)->run("ssh {$user}@{$host} '" . <<<BASH
         #!/bin/bash
