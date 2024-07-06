@@ -19,13 +19,14 @@ class ComposeBuildCommand extends Command
 {
     use CreatesComposeServices;
 
-    protected $signature = 'compose:build {--push}';
+    protected $signature = 'compose:build {--push} {--target=app}';
     protected $description = 'Build the services';
 
     public function handle()
     {
         $app_path = base_path();
         $context = data_get($this->phpServiceDefinition(), 'build.context');
+        $target = $this->option('target');
 
         // remove app.tar if it exists
         if (file_exists("$context/app.tar")) {
@@ -40,7 +41,7 @@ class ComposeBuildCommand extends Command
 
         info(
             str(
-                spin(fn() => Docker::execute("build --target=app $context -t {$this->getPhpImageName()}")->throw()->output(),
+                spin(fn() => Docker::execute("build --target={$target} $context -t {$this->getPhpImageName($target)}")->throw()->output(),
                     'Building PHP image'
                 )
             )->explode("\n")->mapInto(Stringable::class)->filter(fn($line) => str($line)->startsWith('Successfully built'))->first()->prepend("PHP ")
