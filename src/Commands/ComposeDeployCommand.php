@@ -72,6 +72,7 @@ class ComposeDeployCommand extends Command
 
         }
 
+        $compose_yaml = escapeshellarg($this->getComposeYaml());
 
         Process::tty()->timeout(120)->run("ssh {$user}@{$host} '" . <<<BASH
         #!/bin/bash
@@ -86,7 +87,7 @@ class ComposeDeployCommand extends Command
         echo ""
         
         
-        echo '{$this->getComposeYaml()}' > docker-compose.yml
+        echo '{$compose_yaml}' > docker-compose.yml
         docker-compose up -d
         BASH . "'")->throw();
     }
