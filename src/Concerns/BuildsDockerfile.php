@@ -6,6 +6,11 @@ use Illuminate\Support\Facades\Process;
 
 trait BuildsDockerfile
 {
+    private function createDockerfile()
+    {
+        file_put_contents(__DIR__.'/../../build/Dockerfile', $this->getDockerfile());
+    }
+
     private function getDockerfile()
     {
         return <<<DOCKERFILE

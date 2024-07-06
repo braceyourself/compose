@@ -54,7 +54,13 @@ trait HasDatabaseServices
             ...$this->getPortMappings()
         ])->merge($config)
             // ignore ports mapping if empty
-            ->filter(fn($v, $k) => $k == 'ports' && empty($v))
+            ->filter(function ($v, $k) {
+                if ($k == 'ports') {
+                    return !empty($v);
+                }
+
+                return !in_array($k, ['expose_on_port']);
+            })
             ->toArray();
     }
 

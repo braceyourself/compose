@@ -32,7 +32,6 @@ class ComposeUpCommand extends Command
         $forceRecreate = $this->option('force-recreate') ? '--force-recreate' : '';
         $timeout = ($timeout = $this->option('timeout')) !== null ? "--timeout $timeout" : '--timeout=0';
 
-
         if ($this->option('build')) {
             $this->call('compose:build');
         }

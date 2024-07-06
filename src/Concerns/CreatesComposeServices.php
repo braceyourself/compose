@@ -50,15 +50,24 @@ trait CreatesComposeServices
         }];
     }
 
-    private function getComposeConfig()
+    private function getServices()
+    {
+        return collect(config('compose.services'))
+            ->mapWithKeys($this->getServiceDefinition(...))
+            ->filter();
+    }
+
+    private function getComposeYaml()
     {
         Cache::store('array')->clear();
 
-        return Yaml::dump([
-            'services' => collect(config('compose.services'))
-                ->mapWithKeys($this->getServiceDefinition(...))
-                ->filter()
-                ->toArray(),
+        return Yaml::dump($this->getComposeConfig(), Yaml::DUMP_OBJECT_AS_MAP);
+    }
+
+    private function getComposeConfig()
+    {
+        return [
+            'services' => $this->getServices()->toArray(),
             'networks' => [
                 'traefik' => [
                     'external' => true,
@@ -66,6 +75,6 @@ trait CreatesComposeServices
                 ]
 
             ]
-        ], Yaml::DUMP_OBJECT_AS_MAP);
+        ];
     }
 }

@@ -11,10 +11,20 @@ class DockerComposeProcess
 
     private bool $tty = false;
     private bool $throw = false;
+    private array $env;
+
+    public function __construct()
+    {
+        $this->env = getenv();
+    }
 
     public function buildCommand($command): string
     {
-        return "echo '{$this->getComposeConfig()}' | docker compose -f - $command";
+        if(file_exists(base_path('docker-compose.yml'))) {
+            return "docker compose $command";
+        }
+
+        return "echo '{$this->getComposeYaml()}' | docker compose -f - $command";
     }
 
     public function buildServiceCommand($service, $command): string
@@ -29,21 +39,35 @@ class DockerComposeProcess
 
     public function run($command)
     {
-        return Process::tty($this->tty)->run($this->buildCommand($command))->throwIf($this->throw);
+        return Process::tty($this->tty)
+            ->env($this->env)
+            ->run($this->buildCommand($command))
+            ->throwIf($this->throw);
     }
 
-    public function runArtisanCommand($command, $tty = false)
+    public function runArtisanCommand($command)
     {
-        return Process::tty($this->tty)->run($this->buildArtisanCommand($command))->throwIf($this->throw);
+        return Process::tty($this->tty)
+            ->env($this->env)
+            ->run($this->buildArtisanCommand($command))
+            ->throwIf($this->throw);
     }
 
-    public function runServiceCommand($service, $command, $tty = false)
+    public function runServiceCommand($service, $command)
     {
-        return Process::tty($this->tty)->run($this->buildServiceCommand($service, $command))->throwIf($this->throw);
+        return Process::tty($this->tty)
+            ->env($this->env)
+            ->run($this->buildServiceCommand($service, $command))
+            ->throwIf($this->throw);
     }
 
 
+    public function env(array $variables)
+    {
+        $this->env = array_merge($this->env, $variables);
 
+        return $this;
+    }
 
     public function tty($tty = true)
     {

@@ -4,6 +4,7 @@ return [
     'domain'   => env('COMPOSE_DOMAIN'),
     'user_id'  => env('COMPOSE_USER_ID', 1000),
     'group_id' => env('COMPOSE_GROUP_ID', 1000),
+    'profiles' => env('COMPOSE_PROFILES', 'local'),
 
     /***
      * Override these settings to modify your project
