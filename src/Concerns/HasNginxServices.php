@@ -26,9 +26,6 @@ trait HasNginxServices
                 'PROXY_PASS'      => 'php',
                 'PROXY_PASS_PORT' => '9000',
             ],
-            'volumes'        => [
-                './storage:/var/www/html/storage',
-            ],
             'depends_on'     => ['php'],
             'labels'         => [
                 "traefik.http.routers.{$this->getTraefikRouterName()}.tls" => app()->environment('production'),
