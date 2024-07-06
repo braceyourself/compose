@@ -67,6 +67,7 @@ class ComposeDeployCommand extends Command
         # create build/deploy directory
         $build_path = __DIR__ . '/../../build';
 
+        $this->createDockerfile();
         $this->createAppTarball();
 
         info('Copying app to remote server');
