@@ -30,8 +30,6 @@ class ComposeDeployCommand extends Command
         $path = $this->getOrSetConfig('compose.deploy.path', fn() => $this->setEnv('COMPOSE_DEPLOY_PATH', text("Enter the path on {$host} this app should")));
         //$password = $this->getOrSetConfig('compose.deploy.password', fn() => $this->setEnv('COMPOSE_DEPLOY_PASSWORD', password("Enter the password for $user@$host")));
 
-        $this->call('compose:build', ['--push' => true]);
-
         // ensure the host path exists; also that we can login
         Process::run("ssh $user@$host 'mkdir -p $path'")->throw();
 
