@@ -69,9 +69,8 @@ class ComposeDeployCommand extends Command
         $tarball = "{$build_path}/image.tar";
         Process::run("docker save {$production_image} -o {$tarball}")->throw();
 
-        spin(function () use ($tarball, $user, $host, $path) {
-            Process::forever()->run("scp {$tarball} {$user}@{$host}:{$path}/");
-        }, 'Copying image to remote server');
+        info('Copying image to remote server');
+        Process::tty()->forever()->run("scp {$tarball} {$user}@{$host}:{$path}/");
 
         Process::tty()->timeout(120)->run("ssh {$user}@{$host} '" . <<<BASH
         #!/bin/bash
