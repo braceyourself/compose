@@ -87,7 +87,7 @@ class ComposeDeployCommand extends Command
         echo ""
         
         
-        echo '{$compose_yaml}' > docker-compose.yml
+        echo "{$compose_yaml}" > docker-compose.yml
         docker-compose up -d
         BASH . "'")->throw();
     }
