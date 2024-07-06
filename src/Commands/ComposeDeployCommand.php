@@ -70,14 +70,19 @@ class ComposeDeployCommand extends Command
         $this->createDockerfile();
         $this->createAppTarball();
 
-        info('Copying app to remote server');
-        Process::tty()->run("scp -r {$build_path} {$user}@{$host}:{$path}/");
+        spin(fn() => Process::tty()->run("scp -r {$build_path} {$user}@{$host}:{$path}/"),
+            'Copying app to remote server'
+        );
+
+        spin(fn() => Process::tty()->run("ssh {$user}@{$host} docker build -t {$this->getPhpImageName('production')} {$path}/build"),
+            'Building production image...'
+        );
+
         Process::tty()->timeout(120)->run("ssh {$user}@{$host} '" . <<<BASH
         #!/bin/bash
         set -e
         cd {$path}/build
         
-        docker build -t {$this->getPhpImageName('production')} .
         rm app.tar
         ls -la
         BASH . "'")->throw();
