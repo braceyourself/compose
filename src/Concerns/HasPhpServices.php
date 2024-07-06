@@ -63,7 +63,7 @@ trait HasPhpServices
                 ? $this->getLocalPhpVolumes()
                 : [
                     // production volumes
-                    './.env:/var/www/html/.env'
+                    './.env:/var/www/html/.env',
                 ])(),
             // always
             '$HOME/.config/psysh:/var/www/.config/psysh',

@@ -70,6 +70,11 @@ trait BuildsDockerfile
         COPY nginx.conf /etc/nginx/templates/default.conf.template
         COPY --from=app /var/www/html/public /var/www/html/public
         
+        ### production
+        FROM app AS production
+        
+        RUN composer install --no-dev --no-interaction --no-progress --no-suggest --optimize-autoloader
+        
         DOCKERFILE;
     }
 

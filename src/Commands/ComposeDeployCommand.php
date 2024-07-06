@@ -25,17 +25,6 @@ class ComposeDeployCommand extends Command
 
     public function handle()
     {
-        $username = $this->getDockerHubUsername();
-        $password = $this->getDockerHubPassword();
-
-        try {
-            Process::run("docker login")->throw();
-        } catch (\Throwable $th) {
-            warning("\nYou will need a docker hub account to deploy.");
-
-            Process::run("echo '$password' | docker login -u $username --password-stdin")->throw();
-        }
-
         $host = $this->getOrSetConfig('compose.deploy.host', fn() => $this->setEnv('COMPOSE_DEPLOY_HOST', text('What is the hostname of the deployment server?')));
         $user = $this->getOrSetConfig('compose.deploy.user', fn() => $this->setEnv('COMPOSE_DEPLOY_USER', text("What user will you use to login to {$host}", default: exec('whoami'))));
         $path = $this->getOrSetConfig('compose.deploy.path', fn() => $this->setEnv('COMPOSE_DEPLOY_PATH', text("Enter the path on {$host} this app should")));
@@ -72,29 +61,27 @@ class ComposeDeployCommand extends Command
 
         }
 
-        $compose_yaml = $this->getComposeYaml();
+
+        # create build/deploy directory
+        $build_path = __DIR__ . '/../../build';
+        $production_image = $this->getPhpImageName('production');
+
+        $tarball = "{$build_path}/image.tar";
+        $this->call('compose:build', [
+            '--target' => 'production',
+        ]);
+        Process::run("docker build --target=production -t {$production_image} {$build_path}")->throw();
+        Process::run("docker save {$production_image} -o {$tarball}")->throw();
+        Process::run("scp {$tarball} {$user}@{$host}:{$path}/");
+        Process::run("ssh {$user}@{$host} docker load -i {$path}/image.tar")->throw();
+
 
         Process::tty()->timeout(120)->run("ssh {$user}@{$host} '" . <<<BASH
         #!/bin/bash
         set -e
-
-        mkdir -p {$path}/vendor && cd {$path}
-        cd {$path}
-
-        echo "Logging in to docker hub..."
-
-        echo '{$password}' | docker login -u {$username} --password-stdin
-        echo ""
-        
-        
-        echo "{$compose_yaml}" > docker-compose.yml
-        docker-compose up -d
+        mkdir -p {$path} && cd {$path}
+        docker load -i image.tar
         BASH . "'")->throw();
-    }
-
-    public function deployScript($path)
-    {
-        return;
     }
 
     private function createAppTarball()

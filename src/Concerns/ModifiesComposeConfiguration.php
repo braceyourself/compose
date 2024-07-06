@@ -60,21 +60,25 @@ trait ModifiesComposeConfiguration
         );
     }
 
-    private function getPhpImageName()
+    private function getPhpImageName($tag = null)
     {
-        return $this->getOrSetConfig(
+        $tag ??= "php-{$this->getPhpVersion()}";
+
+        $image = $this->getOrSetConfig(
             'compose.services.php.image',
-            function () {
+            function () use ($tag) {
                 $app_dir = str(base_path())->basename()->slug();
-                $php_version = $this->getPhpVersion();
                 $hub_username = $this->getDockerHubUsername();
-                $image = "$hub_username/$app_dir:php-{$php_version}";
+
+                $image = "$hub_username/$app_dir";
 
                 return $this->setEnv('COMPOSE_PHP_IMAGE',
                     text("PHP Image Name:", default: $image, hint: "Please confirm the PHP image name")
                 );
             }
         );
+
+        return str($image)->before(':')->append(":php-{$tag}")->value();
     }
 
     private function getPhpVersion()
