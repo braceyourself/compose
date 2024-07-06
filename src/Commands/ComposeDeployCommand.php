@@ -36,13 +36,15 @@ class ComposeDeployCommand extends Command
             Process::run("echo '$password' | docker login -u $username --password-stdin")->throw();
         }
 
-        $host = $this->getOrSetConfig('compose.deploy.host', fn() => $this->setEnv('COMPOSE_DEPLOY_HOST', text('What is the host of the deployment server?')));
-        $user = $this->getOrSetConfig('compose.deploy.user', fn() => $this->setEnv('COMPOSE_DEPLOY_USER', text('What is the user of the deployment server?', default: exec('whoami'))));
-        $path = $this->getOrSetConfig('compose.deploy.path', fn() => $this->setEnv('COMPOSE_DEPLOY_PATH', text('What is the path of the deployment server?')));
+        $host = $this->getOrSetConfig('compose.deploy.host', fn() => $this->setEnv('COMPOSE_DEPLOY_HOST', text('What is the hostname of the deployment server?')));
+        $user = $this->getOrSetConfig('compose.deploy.user', fn() => $this->setEnv('COMPOSE_DEPLOY_USER', text("What user will you use to login to {$host}", default: exec('whoami'))));
+        $path = $this->getOrSetConfig('compose.deploy.path', fn() => $this->setEnv('COMPOSE_DEPLOY_PATH', text("Enter the path on {$host} this app should")));
         //$password = $this->getOrSetConfig('compose.deploy.password', fn() => $this->setEnv('COMPOSE_DEPLOY_PASSWORD', password("Enter the password for $user@$host")));
 
         $this->call('compose:build', ['--push' => true]);
 
+        // ensure the host path exists; also that we can login
+        Process::run("ssh $user@$host 'mkdir -p $path'")->throw();
 
 //        ssh -q $HOST [[ -f $FILE_PATH ]] && echo "File exists" || echo "File does not exist";
         if ($this->shouldCreateRemoteEnvFile($user, $host, $path)) {

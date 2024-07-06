@@ -34,6 +34,6 @@ trait InteractsWithDocker
     {
         $username = $this->getDockerHubUsername();
 
-        return $this->getOrSetConfig('compose.deploy.docker_hub_password', fn() => $this->setEnv('DOCKER_HUB_PASSWORD', password("Enter the password for $username")));
+        return $this->getOrSetConfig('compose.deploy.docker_hub_password', fn() => $this->setEnv('DOCKER_HUB_PASSWORD', password("Enter the hub.docker.com password for $username")));
     }
 }
