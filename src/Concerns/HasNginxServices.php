@@ -12,13 +12,13 @@ trait HasNginxServices
         return "$hub_username/$app_name-nginx";
     }
 
-    private function nginxServiceDefinition($config): array
+    private function nginxServiceDefinition($config = [], $environment = 'local'): array
     {
         return collect([
             'image'          => $this->getNginxImageName(),
             'container_name' => $this->getDomainName(),
             'build'          => [
-                'context' => __DIR__ . '/../../build',
+                'context' => $this->getBuildContext($environment),
                 'target'  => 'nginx'
             ],
             'restart'        => 'always',

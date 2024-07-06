@@ -69,23 +69,23 @@ class ComposeDeployCommand extends Command
 
         $this->createDockerfile();
         $this->createAppTarball();
+//        $compose_yaml = spin(fn() => , 'Generating compose configuration...');
 
-        spin(fn() => Process::run("scp -r {$build_path} {$user}@{$host}:{$path}/"),
+        // copy the build directory to the server
+        spin(fn() => Process::run("scp -r {$build_path} {$user}@{$host}:{$path}/")->throw(),
             'Copying app to remote server'
         );
 
-        spin(fn() => Process::run("ssh {$user}@{$host} docker build --target=production -t {$this->getPhpImageName('production')} {$path}/build"),
+
+        # run docker build on server
+        spin(fn() => Process::forever()->run("ssh {$user}@{$host} docker build --target=production -t {$this->getPhpImageName()} {$path}/build")->throw(),
             'Building production image...'
         );
 
-        Process::tty()->timeout(120)->run("ssh {$user}@{$host} '" . <<<BASH
-        #!/bin/bash
-        set -e
-        cd {$path}/build
-        
-        rm app.tar
-        ls -la
-        BASH . "'")->throw();
+
+        Process::tty()->run("ssh {$user}@{$host} 'echo \"{$this->getComposeYaml('production')}\" > {$path}/docker-compose.yml'")->throw();
+
+        Process::tty()->timeout(120)->run("ssh -t {$user}@{$host} 'docker-compose -f {$path}/docker-compose.yml up -d'")->throw();
     }
 
     private function createAppTarball()

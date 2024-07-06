@@ -4,7 +4,7 @@ namespace Braceyourself\Compose\Concerns;
 
 trait HasMailServices
 {
-    private function mailhogServiceDefinition($config): array
+    private function mailhogServiceDefinition($config = [], $environment = 'local'): array
     {
         return collect([
             'image'          => 'mailhog/mailhog',

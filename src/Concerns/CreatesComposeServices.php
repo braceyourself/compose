@@ -28,8 +28,20 @@ trait CreatesComposeServices
     use HasDatabaseServices;
     use HasMailServices;
 
-    public function getServiceDefinition($config, string $service_name)
+    public function getBuildContext($env = 'local')
     {
+        return match($env){
+            'local' => file_exists(base_path('build'))
+                ? base_path('build')
+                : __DIR__ . '/../../build',
+            'production' => './build'
+        };
+    }
+
+    public function getServiceDefinition(string $service_name, $environment = 'local')
+    {
+        $config = config("compose.services.{$service_name}");
+
         if ($config === false) {
             return [];
         }
@@ -39,35 +51,35 @@ trait CreatesComposeServices
         }
 
         return [$service_name => match ($service_name) {
-            'php' => $this->phpServiceDefinition($config),
-            'nginx' => $this->nginxServiceDefinition($config),
-            'npm' => $this->npmServiceDefinition($config),
-            'mysql', 'database' => $this->databaseServiceDefinition($config),
-            'scheduler' => $this->schedulerServiceDefinition($config),
-            'redis' => $this->redisServiceDefinition($config),
-            'mailhog' => $this->mailhogServiceDefinition($config),
-            'horizon' => $this->horizonServiceDefinition($config),
+            'php' => $this->phpServiceDefinition($config, $environment),
+            'nginx' => $this->nginxServiceDefinition($config, $environment),
+            'npm' => $this->npmServiceDefinition($config, $environment),
+            'mysql', 'database' => $this->databaseServiceDefinition($config, $environment),
+            'scheduler' => $this->schedulerServiceDefinition($config, $environment),
+            'redis' => $this->redisServiceDefinition($config, $environment),
+            'mailhog' => $this->mailhogServiceDefinition($config, $environment),
+            'horizon' => $this->horizonServiceDefinition($config, $environment),
         }];
     }
 
-    private function getServices()
+    private function getServices($environment = 'local')
     {
         return collect(config('compose.services'))
-            ->mapWithKeys($this->getServiceDefinition(...))
+            ->mapWithKeys(fn($config, $service_name) => $this->getServiceDefinition($service_name, $environment))
             ->filter();
     }
 
-    private function getComposeYaml()
+    private function getComposeYaml($env = 'local')
     {
-        Cache::store('array')->clear();
+//        Cache::store('array')->clear();
 
-        return Yaml::dump($this->getComposeConfig(), Yaml::DUMP_OBJECT_AS_MAP);
+        return Yaml::dump($this->getComposeConfig($env), Yaml::DUMP_OBJECT_AS_MAP);
     }
 
-    private function getComposeConfig()
+    private function getComposeConfig($environment = 'local')
     {
         return [
-            'services' => $this->getServices()->toArray(),
+            'services' => $this->getServices($environment)->toArray(),
             'networks' => [
                 'traefik' => [
                     'external' => true,

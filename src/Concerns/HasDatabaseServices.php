@@ -10,7 +10,7 @@ use function Laravel\Prompts\confirm;
 
 trait HasDatabaseServices
 {
-    private function databaseServiceDefinition($config = []): array
+    private function databaseServiceDefinition($config = [], $environment = 'local'): array
     {
         $env = str(file_get_contents('.env'));
         if ($env->contains(['# DB_', '#DB_']) && confirm("There are commented DB_ values in your .env. Would you like to update them?")) {

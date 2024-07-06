@@ -4,7 +4,7 @@ namespace Braceyourself\Compose\Concerns;
 
 trait HasRedisService
 {
-    private function redisServiceDefinition($config): array
+    private function redisServiceDefinition($config = [], $environment = 'local'): array
     {
         $env = str(file_get_contents('.env'));
 

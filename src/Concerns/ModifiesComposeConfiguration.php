@@ -60,13 +60,11 @@ trait ModifiesComposeConfiguration
         );
     }
 
-    private function getPhpImageName($tag = null)
+    private function getPhpImageName()
     {
-        $tag ??= "php-{$this->getPhpVersion()}";
-
-        $image = $this->getOrSetConfig(
+        return $this->getOrSetConfig(
             'compose.services.php.image',
-            function () use ($tag) {
+            function () {
                 $app_dir = str(base_path())->basename()->slug();
                 $hub_username = $this->getDockerHubUsername();
 
@@ -77,8 +75,6 @@ trait ModifiesComposeConfiguration
                 );
             }
         );
-
-        return str($image)->before(':')->append(":php-{$tag}")->value();
     }
 
     private function getPhpVersion()

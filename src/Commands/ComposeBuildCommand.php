@@ -41,7 +41,7 @@ class ComposeBuildCommand extends Command
 
         info(
             str(
-                spin(fn() => Docker::execute("build --target={$target} $context -t {$this->getPhpImageName($target)}")->throw()->output(),
+                spin(fn() => Docker::execute("build --target={$target} $context -t {$this->getPhpImageName()}")->throw()->output(),
                     'Building PHP image'
                 )
             )->explode("\n")->mapInto(Stringable::class)->filter(fn($line) => str($line)->startsWith('Successfully built'))->first()->prepend("PHP ")

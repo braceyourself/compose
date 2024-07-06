@@ -6,16 +6,16 @@ use Illuminate\Support\Facades\Http;
 
 trait HasPhpServices
 {
-    private function phpServiceDefinition(array $config = []): array
+    private function phpServiceDefinition(array $config = [], $environment = 'local'): array
     {
         return collect([
             'image'       => $this->getPhpImageName(),
             'user'        => "{$this->getUserId()}:{$this->getGroupId()}",
-            'volumes'     => $this->getPhpVolumes(),
+            'volumes'     => $this->getPhpVolumes($environment),
             'build' => [
-                'context' => __DIR__.'/../../build',
+                'context' => $this->getBuildContext($environment),
                 'dockerfile' => 'Dockerfile',
-                'target' => 'app'
+                'target' => $environment == 'local' ? 'app' : 'production'
             ],
             'env_file'    => ['.env'],
             'working_dir' => '/var/www/html',
@@ -28,12 +28,12 @@ trait HasPhpServices
             ->toArray();
     }
 
-    private function schedulerServiceDefinition($config = []): array
+    private function schedulerServiceDefinition($config = [], $environment = 'local'): array
     {
         return collect([
             'image'       => $this->getPhpImageName(),
             'restart'     => 'always',
-            'volumes'     => $this->getPhpVolumes(),
+            'volumes'     => $this->getPhpVolumes($environment),
             'depends_on'  => ['php'],
             'environment' => [
                 'SERVICE' => 'scheduler'
@@ -42,12 +42,12 @@ trait HasPhpServices
     }
 
 
-    private function horizonServiceDefinition($config = []): array
+    private function horizonServiceDefinition($config = [], $environment = 'local'): array
     {
         return collect([
             'image'       => $this->getPhpImageName(),
             'restart'     => 'always',
-            'volumes'     => $this->getPhpVolumes(),
+            'volumes'     => $this->getPhpVolumes($environment),
             'depends_on'  => ['php'],
             'command'     => 'php artisan horizon',
             'environment' => [
@@ -56,18 +56,15 @@ trait HasPhpServices
         ])->merge($config)->toArray();
     }
 
-    private function getPhpVolumes()
+    private function getPhpVolumes($environment = 'local')
     {
-        return [
-            ...(fn(): array => app()->environment('local')
-                ? $this->getLocalPhpVolumes()
-                : [
-                    // production volumes
-                    './.env:/var/www/html/.env',
-                ])(),
-            // always
+        $volumes = [
             '$HOME/.config/psysh:/var/www/.config/psysh',
         ];
+
+        return $environment === 'local'
+            ? array_merge($volumes, $this->getLocalPhpVolumes())
+            : array_merge($volumes, $this->getProductionPhpVolumes());
     }
 
     private function getLocalPhpVolumes(): array
@@ -75,17 +72,24 @@ trait HasPhpServices
         $volumes = ['./:/var/www/html'];
 
         // check if any local paths are defined in the repository section of composer.json
-        if (file_exists($path = base_path('composer.json'))) {
-            $volumes = collect(data_get(json_decode(file_get_contents($path), true), 'repositories', []))
+        if (file_exists($composer_json = base_path('composer.json'))) {
+            $volumes = collect(data_get(json_decode(file_get_contents($composer_json), true), 'repositories', []))
                 ->where('type', 'path')
                 ->map->url
                 // map it directly to the container
-                ->map(fn($path) => "$path:$path")
+                ->map(fn($path) => "$composer_json:$composer_json")
                 ->merge($volumes)
                 ->toArray();
         }
 
         return $volumes;
+    }
+
+    private function getProductionPhpVolumes(): array
+    {
+        return [
+            './.env:/var/www/html/.env',
+        ];
     }
 
     private function getPhpVersions()
