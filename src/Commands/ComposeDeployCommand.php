@@ -86,7 +86,8 @@ class ComposeDeployCommand extends Command
         echo ""
         
         
-        docker run --pull always --rm --user=$(id -u) -i --entrypoint=composer -v '{$path}/vendor:/var/www/html/vendor' {$this->getPhpImageName()} install
+        echo '{$this->getComposeYaml()}' > docker-compose.yml
+        docker-compose up -d
         BASH . "'")->throw();
     }
 
