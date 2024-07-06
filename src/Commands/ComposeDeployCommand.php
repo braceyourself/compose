@@ -59,20 +59,19 @@ class ComposeDeployCommand extends Command
 
         }
 
+        $this->call('compose:build', [
+            '--target' => 'production',
+        ]);
 
         # create build/deploy directory
         $build_path = __DIR__ . '/../../build';
         $production_image = $this->getPhpImageName('production');
-
         $tarball = "{$build_path}/image.tar";
-        $this->call('compose:build', [
-            '--target' => 'production',
-        ]);
-        Process::run("docker build --target=production -t {$production_image} {$build_path}")->throw();
         Process::run("docker save {$production_image} -o {$tarball}")->throw();
-        Process::run("scp {$tarball} {$user}@{$host}:{$path}/");
-        Process::run("ssh {$user}@{$host} docker load -i {$path}/image.tar")->throw();
 
+        spin(function () use ($tarball, $user, $host, $path) {
+            Process::forever()->run("scp {$tarball} {$user}@{$host}:{$path}/");
+        }, 'Copying image to remote server');
 
         Process::tty()->timeout(120)->run("ssh {$user}@{$host} '" . <<<BASH
         #!/bin/bash
