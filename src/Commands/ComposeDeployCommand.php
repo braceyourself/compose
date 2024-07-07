@@ -147,6 +147,7 @@ class ComposeDeployCommand extends Command
         info("Updating .env file on remote server");
 
         $res = $diff->map(function($line){
+            $line = str($line);
             return str(
                 text($line->before('='), default: $line->after('='))
             )->prepend($line->before('='))->value();
