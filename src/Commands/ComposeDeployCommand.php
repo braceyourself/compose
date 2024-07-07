@@ -151,8 +151,8 @@ class ComposeDeployCommand extends Command
             $line = str($line);
             return str(
                 text($line->before('='), default: $line->after('='))
-            )->prepend($line->before('='))->value();
-        });
+            )->prepend($line->before('=').'=')->value();
+        })->join("\n");
 
 
         Process::run("echo '{$res}' | ssh {$user}@{$host} 'cat >> {$path}/.env'")->throw();
