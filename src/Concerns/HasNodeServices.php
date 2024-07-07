@@ -10,7 +10,7 @@ use function Laravel\Prompts\confirm;
 
 trait HasNodeServices
 {
-    private function npmServiceDefinition($config): array
+    private function npmServiceDefinition($config, $env = 'local'): array
     {
         if (file_exists(base_path('vite.config.js'))) {
             $vite_config_content = str(file_get_contents(base_path('vite.config.js')));

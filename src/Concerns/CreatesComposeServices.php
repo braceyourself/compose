@@ -28,7 +28,7 @@ trait CreatesComposeServices
     use HasDatabaseServices;
     use HasMailServices;
 
-    public function getServiceDefinition($config, string $service_name)
+    public function getServiceDefinition($config, string $service_name, $env = 'local')
     {
         if ($config === false) {
             return [];
@@ -39,33 +39,33 @@ trait CreatesComposeServices
         }
 
         return [$service_name => match ($service_name) {
-            'php' => $this->phpServiceDefinition($config),
-            'nginx' => $this->nginxServiceDefinition($config),
-            'npm' => $this->npmServiceDefinition($config),
-            'mysql', 'database' => $this->databaseServiceDefinition($config),
-            'scheduler' => $this->schedulerServiceDefinition($config),
-            'redis' => $this->redisServiceDefinition($config),
-            'mailhog' => $this->mailhogServiceDefinition($config),
-            'horizon' => $this->horizonServiceDefinition($config),
+            'php' => $this->phpServiceDefinition($config, $env),
+            'nginx' => $this->nginxServiceDefinition($config, $env),
+            'npm' => $this->npmServiceDefinition($config, $env),
+            'mysql', 'database' => $this->databaseServiceDefinition($config, $env),
+            'scheduler' => $this->schedulerServiceDefinition($config, $env),
+            'redis' => $this->redisServiceDefinition($config, $env),
+            'mailhog' => $this->mailhogServiceDefinition($config, $env),
+            'horizon' => $this->horizonServiceDefinition($config, $env),
         }];
     }
 
-    private function getServices()
+    private function getServices($env = 'local')
     {
         return collect(config('compose.services'))
-            ->mapWithKeys($this->getServiceDefinition(...))
+            ->mapWithKeys(fn($config, $service) => $this->getServiceDefinition($config, $service, $env))
             ->filter();
     }
 
-    private function getComposeYaml()
+    private function getComposeYaml($env = 'local')
     {
-        return Yaml::dump($this->getComposeConfig(), Yaml::DUMP_OBJECT_AS_MAP);
+        return Yaml::dump($this->getComposeConfig($env), Yaml::DUMP_OBJECT_AS_MAP);
     }
 
-    private function getComposeConfig()
+    private function getComposeConfig($env = 'local')
     {
         return [
-            'services' => $this->getServices()->toArray(),
+            'services' => $this->getServices($env)->toArray(),
             'networks' => [
                 'traefik' => [
                     'external' => true,

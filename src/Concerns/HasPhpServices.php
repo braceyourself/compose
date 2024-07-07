@@ -6,12 +6,12 @@ use Illuminate\Support\Facades\Http;
 
 trait HasPhpServices
 {
-    private function phpServiceDefinition(array $config = []): array
+    private function phpServiceDefinition(array $config = [], $env = 'local'): array
     {
         return collect([
-            'image'       => $this->getPhpImageName(),
-            'user'        => "{$this->getUserId()}:{$this->getGroupId()}",
-            'volumes'     => $this->getPhpVolumes(),
+            'image'       => '${COMPOSE_PHP_IMAGE}',
+            'user'        => '${USER_ID}:${GROUP_ID}',
+            'volumes'     => $this->getPhpVolumes($env),
             'build'       => [
                 'context'    => __DIR__ . '/../../build',
                 'dockerfile' => 'Dockerfile',
@@ -28,12 +28,12 @@ trait HasPhpServices
             ->toArray();
     }
 
-    private function schedulerServiceDefinition($config = []): array
+    private function schedulerServiceDefinition($config = [], $env = 'local'): array
     {
         return collect([
-            'image'       => $this->getPhpImageName(),
+            'image'       => '${COMPOSE_PHP_IMAGE}',
             'restart'     => 'always',
-            'volumes'     => $this->getPhpVolumes(),
+            'volumes'     => $this->getPhpVolumes($env),
             'depends_on'  => ['php'],
             'environment' => [
                 'SERVICE' => 'scheduler'
@@ -42,12 +42,12 @@ trait HasPhpServices
     }
 
 
-    private function horizonServiceDefinition($config = []): array
+    private function horizonServiceDefinition($config = [], $env = 'local'): array
     {
         return collect([
-            'image'       => $this->getPhpImageName(),
+            'image'       => '${COMPOSE_PHP_IMAGE}',
             'restart'     => 'always',
-            'volumes'     => $this->getPhpVolumes(),
+            'volumes'     => $this->getPhpVolumes($env),
             'depends_on'  => ['php'],
             'command'     => 'php artisan horizon',
             'environment' => [
@@ -56,12 +56,15 @@ trait HasPhpServices
         ])->merge($config)->toArray();
     }
 
-    private function getPhpVolumes()
+    private function getPhpVolumes($env = 'local')
     {
-        return [
-            '$HOME/.config/psysh:/var/www/.config/psysh',
-            './.env:/var/www/html/.env',
-        ];
+        return match($env){
+            'local' => $this->getLocalPhpVolumes(),
+            'production' => [
+                '$HOME/.config/psysh:/var/www/.config/psysh',
+                './.env:/var/www/html/.env',
+            ]
+        };
     }
 
     private function getLocalPhpVolumes(): array
@@ -81,7 +84,6 @@ trait HasPhpServices
 
         return $volumes;
     }
-
 
     private function getPhpVersions()
     {

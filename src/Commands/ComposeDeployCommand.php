@@ -57,7 +57,7 @@ class ComposeDeployCommand extends Command
             'Building production image...'
         );
 
-        Process::tty()->run("ssh {$user}@{$host} 'echo \"{$this->getComposeYaml()}\" > {$path}/docker-compose.yml'")->throw();
+        Process::tty()->run("ssh {$user}@{$host} 'echo \"{$this->getComposeYaml('production')}\" > {$path}/docker-compose.yml'")->throw();
 //
 //        Process::tty()->timeout(120)->run("ssh -t {$user}@{$host} 'docker-compose -f {$path}/docker-compose.yml up -d -t0'")->throw();
 
