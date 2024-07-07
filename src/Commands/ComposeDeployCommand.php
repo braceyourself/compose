@@ -130,7 +130,7 @@ class ComposeDeployCommand extends Command
             return str(file_get_contents('.env.example'))
                 ->explode("\n")
                 ->filter()
-                ->filter(fn($line) => !$remote_env->contains(str($line)->before('=')));
+                ->filter(fn($line) => !$remote_env->contains(str($line)->trim("# ")->before('=')));
         });
     }
 
