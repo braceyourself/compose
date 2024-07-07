@@ -27,13 +27,13 @@ trait InteractsWithDocker
 
     public function getDockerHubUsername()
     {
-        return $this->getOrSetConfig('compose.deploy.docker_hub_username', fn() => $this->setEnv('DOCKER_HUB_USERNAME', text('What is your docker hub username?')));
+        return $this->getOrSetConfig('compose.deploy.docker_hub_username');
     }
 
     public function getDockerHubPassword()
     {
-        $username = $this->getDockerHubUsername();
-
-        return $this->getOrSetConfig('compose.deploy.docker_hub_password', fn() => $this->setEnv('DOCKER_HUB_PASSWORD', password("Enter the hub.docker.com password for $username")));
+        if ($this->getDockerHubUsername()) {
+            return $this->getOrSetConfig('compose.deploy.docker_hub_password');
+        }
     }
 }

@@ -12,13 +12,12 @@ trait ModifiesComposeConfiguration
 {
     use InteractsWithEnvFile;
 
-    private function getOrSetConfig($key, callable $set)
+    private function getOrSetConfig($key, callable $set = null)
     {
         $value = Config::get($key);
 
-        if (empty($value)) {
-            $value = $set();
-            Config::set($key, $value);
+        if (isset($set) && empty($value)) {
+            Config::set($key, $value = $set());
         }
 
         return $value;

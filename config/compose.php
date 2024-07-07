@@ -68,5 +68,7 @@ return [
         'user' => env('COMPOSE_DEPLOY_USER'),
         'path' => env('COMPOSE_DEPLOY_PATH'),
         'password' => env('COMPOSE_DEPLOY_PASSWORD'),
+        'docker_hub_username' => env('DOCKER_HUB_USERNAME'),
+        'docker_hub_password' => env('DOCKER_HUB_PASSWORD'),
     ]
 ];
