@@ -50,8 +50,8 @@ trait HasNodeServices
 
         return collect([
             'image'          => $image,
-            'container_name' => "hmr.{$this->getDomainName()}",
-            'user'           => "{$this->getUserId()}:{$this->getGroupId()}",
+            'container_name' => 'hmr.${COMPOSE_DOMAIN}',
+            'user'           => '${USER_ID}:${GROUP_ID}',
             'working_dir'    => '/var/www/html',
             'command'        => 'npm run dev -- --host --port=80',
             'labels'         => [

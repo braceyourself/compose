@@ -57,7 +57,12 @@ class ComposeDeployCommand extends Command
             'Building production image...'
         );
 
-        Process::tty()->run("ssh {$user}@{$host} 'echo \"{$this->getComposeYaml('production')}\" > {$path}/docker-compose.yml'")->throw();
+        file_put_contents('/tmp/docker-compose.yml', $this->getComposeYaml('production'));
+
+        spin(fn() => Process::run("scp -r /tmp/docker-compose.yml {$user}@{$host}:{$path}/")->throw(),
+            'Copying compose file to remote server'
+        );
+
 //
 //        Process::tty()->timeout(120)->run("ssh -t {$user}@{$host} 'docker-compose -f {$path}/docker-compose.yml up -d -t0'")->throw();
 

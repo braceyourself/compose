@@ -32,6 +32,7 @@ trait HasPhpServices
     {
         return collect([
             'image'       => '${COMPOSE_PHP_IMAGE}',
+            'user'        => '${USER_ID}:${GROUP_ID}',
             'restart'     => 'always',
             'volumes'     => $this->getPhpVolumes($env),
             'depends_on'  => ['php'],
@@ -46,6 +47,7 @@ trait HasPhpServices
     {
         return collect([
             'image'       => '${COMPOSE_PHP_IMAGE}',
+            'user'        => '${USER_ID}:${GROUP_ID}',
             'restart'     => 'always',
             'volumes'     => $this->getPhpVolumes($env),
             'depends_on'  => ['php'],
