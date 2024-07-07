@@ -12,13 +12,13 @@ trait HasNginxServices
         return "$hub_username/$app_name-nginx";
     }
 
-    private function nginxServiceDefinition($config = [], $environment = 'local'): array
+    private function nginxServiceDefinition($config = []): array
     {
         return collect([
             'image'          => $this->getNginxImageName(),
             'container_name' => $this->getDomainName(),
             'build'          => [
-                'context' => $this->getBuildContext($environment),
+                'context' => __DIR__ . '/../../build',
                 'target'  => 'nginx'
             ],
             'restart'        => 'always',
@@ -28,7 +28,7 @@ trait HasNginxServices
             ],
             'depends_on'     => ['php'],
             'labels'         => [
-                "traefik.http.routers.{$this->getTraefikRouterName()}.tls" => app()->environment('production'),
+                "traefik.http.routers.{$this->getTraefikRouterName()}.tls" => false,
             ],
             'networks'       => ['default', 'traefik'],
         ])->merge($config)->toArray();

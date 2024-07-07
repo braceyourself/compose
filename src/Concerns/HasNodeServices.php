@@ -10,7 +10,7 @@ use function Laravel\Prompts\confirm;
 
 trait HasNodeServices
 {
-    private function npmServiceDefinition($config, $environment = 'local'): array
+    private function npmServiceDefinition($config): array
     {
         if (file_exists(base_path('vite.config.js'))) {
             $vite_config_content = str(file_get_contents(base_path('vite.config.js')));
@@ -61,7 +61,7 @@ trait HasNodeServices
             'volumes'        => ['./:/var/www/html'],
             'depends_on'     => ['php'],
             'networks'       => ['default', 'traefik'],
-            ...(fn() => $environment == 'local' ? [] : ['profiles' => ['do-not-run']])()
+            'profiles'       => ['local']
         ])->merge($config)->toArray();
     }
 }

@@ -15,38 +15,39 @@ class ComposePublishCommand extends Command
 {
     use CreatesComposeServices;
 
-    protected $signature = 'compose:publish';
+    protected $signature = 'compose:publish 
+                            {--publish-path=}
+    ';
     protected $description = 'Publish the docker compose files.';
 
     public function handle()
     {
+        $publish_path = $this->option('publish-path') ?? base_path();
         $compose_build_dir = __DIR__.'/../../build';
+
         $this->createDockerfile();
 
-        if (!file_exists(base_path('build'))) {
-            mkdir(base_path('build'));
+        if (!file_exists("{$publish_path}/build")) {
+            mkdir("{$publish_path}/build");
         }
 
         foreach(scandir($compose_build_dir) as $file) {
             if (in_array($file, ['.', '..', 'app.tar'])) {
                 continue;
             }
-            copy("{$compose_build_dir}/{$file}", base_path('build/'.basename($file)));
+            copy("{$compose_build_dir}/{$file}", "{$publish_path}/build/".basename($file));
         }
 
         $yaml = str($this->getComposeYaml())
-            ->replaceMatches('/context:.*/', 'context: ./build')
+            ->replaceMatches('/context:.*/', "context: {$publish_path}/build")
             ->value();
 
-        file_put_contents(base_path('docker-compose.yml'), $yaml);
+        file_put_contents("{$publish_path}/docker-compose.yml", $yaml);
 
         $this->info("Compose files published:");
-        $this->info("  - docker-compose.yml");
-        foreach(scandir(base_path('build')) as $file) {
-            if (in_array($file, ['.', '..'])) {
-                continue;
-            }
-            $this->info("  - build/{$file}");
+        $this->info("  - {$publish_path}/docker-compose.yml");
+        foreach(scandir("{$publish_path}/build") as $file) {
+            !in_array($file, ['.', '..']) && $this->info("  - {$publish_path}/build/{$file}");
         }
     }
 }
