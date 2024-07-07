@@ -66,7 +66,7 @@ class ComposeDeployCommand extends Command
 //
 //        Process::tty()->timeout(120)->run("ssh -t {$user}@{$host} 'docker-compose -f {$path}/docker-compose.yml up -d -t0'")->throw();
 
-        $this->info('Deployed in '. now()->since($start));
+        $this->info('Deployed in '. now()->longAbsoluteDiffForHumans($start));
     }
 
     private function createAppTarball()
