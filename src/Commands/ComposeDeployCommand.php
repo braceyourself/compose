@@ -34,7 +34,6 @@ class ComposeDeployCommand extends Command
         $path = $this->getOrSetConfig('compose.deploy.path', fn() => $this->setEnv('COMPOSE_DEPLOY_PATH', text("Enter the path on {$host} this app should")));
         //$password = $this->getOrSetConfig('compose.deploy.password', fn() => $this->setEnv('COMPOSE_DEPLOY_PASSWORD', password("Enter the password for $user@$host")));
 
-
         if ($this->option('down')) {
             Process::tty()->run("ssh {$user}@{$host} docker-compose -f {$path}/docker-compose.yml down")->throw();
             return;
@@ -56,37 +55,31 @@ class ComposeDeployCommand extends Command
 
         $this->createDockerfile();
         $this->createAppTarball();
-//        $compose_yaml = spin(fn() => , 'Generating compose configuration...');
 
         // copy the build directory to the server
         spin(fn() => Process::run("scp -r {$build_path} {$user}@{$host}:{$path}/")->throw(),
             'Copying app to remote server'
         );
 
-
         // run docker build on server
         spin(fn() => Process::forever()->run("ssh {$user}@{$host} docker build --target=production -t {$this->getPhpImageName()} {$path}/build")->throw(),
             'Building production image...'
         );
 
-        file_put_contents('/tmp/docker-compose.yml', $this->getComposeYaml('production'));
-
-        spin(fn() => Process::run("scp -r /tmp/docker-compose.yml {$user}@{$host}:{$path}/")->throw(),
-            'Copying compose file to remote server'
-        );
+        $this->createRemoteComposeFile($user, $host, $path);
 
         Process::tty()
             ->timeout(120)
             ->run("ssh -t {$user}@{$host} 'docker-compose -f {$path}/docker-compose.yml up -d -t0 --remove-orphans'")
             ->throw();
 
-
+        // set the app key if not set
         if (!$this->getRemoteEnv($user, $host, $path)->contains("APP_KEY=base64:")) {
             $this->info("Setting APP_KEY on remote server");
             Process::tty()->run("ssh -t {$user}@{$host} 'cd {$path} && docker-compose exec -T php php artisan key:generate'")->throw();
         }
 
-
+        // optimize app
         Process::tty()->run("ssh -t {$user}@{$host} 'cd {$path} && docker-compose exec -T php php artisan optimize'")->throw();
 
         $this->info('Deployed in ' . now()->longAbsoluteDiffForHumans($start));
@@ -182,6 +175,14 @@ class ComposeDeployCommand extends Command
         return Cache::store('array')->rememberForever(
             'compose-remote-env' . $user . $host . $path,
             fn() => str(Process::run("ssh -q {$user}@{$host} 'cat {$path}/.env'")->throw()->output())
+        );
+    }
+
+    private function createRemoteComposeFile(mixed $user, mixed $host, mixed $path)
+    {
+        file_put_contents('/tmp/docker-compose.yml', $this->getComposeYaml('production'));
+        spin(fn() => Process::run("scp -r /tmp/docker-compose.yml {$user}@{$host}:{$path}/")->throw(),
+            'Copying compose file to remote server'
         );
     }
 }
