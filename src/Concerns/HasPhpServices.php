@@ -79,7 +79,7 @@ trait HasPhpServices
                 ->where('type', 'path')
                 ->map->url
                 // map it directly to the container
-                ->map(fn($path) => "$composer_json:$composer_json")
+                ->map(fn($path) => "$path:$path")
                 ->merge($volumes)
                 ->toArray();
         }
