@@ -39,11 +39,6 @@ class ComposeDeployCommand extends Command
             $this->updateEnvOnRemote($user, $host, $path);
         }
 
-//        $this->call('compose:build', [
-//            '--target' => 'production',
-//        ]);
-
-
         # create build/deploy directory
         $build_path = __DIR__ . '/../../build';
 
@@ -57,17 +52,16 @@ class ComposeDeployCommand extends Command
         );
 
 
-        # run docker build on server
+        // run docker build on server
         spin(fn() => Process::forever()->run("ssh {$user}@{$host} docker build --target=production -t {$this->getPhpImageName()} {$path}/build")->throw(),
             'Building production image...'
         );
 
-        $this->info('Deployed in'. $start->diffForHumans(now()));
-
-
-//        Process::tty()->run("ssh {$user}@{$host} 'echo \"{$this->getComposeYaml()}\" > {$path}/docker-compose.yml'")->throw();
+        Process::tty()->run("ssh {$user}@{$host} 'echo \"{$this->getComposeYaml()}\" > {$path}/docker-compose.yml'")->throw();
 //
 //        Process::tty()->timeout(120)->run("ssh -t {$user}@{$host} 'docker-compose -f {$path}/docker-compose.yml up -d -t0'")->throw();
+
+        $this->info('Deployed in '. now()->since($start));
     }
 
     private function createAppTarball()
