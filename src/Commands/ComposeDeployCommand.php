@@ -73,7 +73,7 @@ class ComposeDeployCommand extends Command
             ->throw();
 
 
-        if (!$this->getRemoteEnv($user, $host, $path)->match("APP_KEY=base64:")) {
+        if (!$this->getRemoteEnv($user, $host, $path)->match("/APP_KEY=base64:.*/")) {
             $this->info("Setting APP_KEY on remote server");
             Process::tty()->run("ssh -t {$user}@{$host} 'cd {$path} && docker-compose exec -T php php artisan key:generate'")->throw();
         }
