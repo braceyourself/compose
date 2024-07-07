@@ -125,7 +125,7 @@ class ComposeDeployCommand extends Command
 
     private function envExampleDiffFromRemote($user, $host, $path)
     {
-        return Cache::rememberForever('compose-remote-env'.$user.$host.$path, function () use ($path, $host, $user) {
+        return Cache::store('array')->rememberForever('compose-remote-env'.$user.$host.$path, function () use ($path, $host, $user) {
             $remote_env = str(Process::run("ssh -q {$user}@{$host} 'cat {$path}/.env'")->throw()->output());
             return str(file_get_contents('.env.example'))
                 ->explode("\n")
