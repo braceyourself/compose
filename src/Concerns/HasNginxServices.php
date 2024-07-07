@@ -29,6 +29,7 @@ trait HasNginxServices
             'depends_on'     => ['php'],
             'labels'         => [
                 "traefik.http.routers.{$this->getTraefikRouterName()}.tls" => $env == 'production',
+                "traefik.http.routers.{$this->getTraefikRouterName()}.tls.certresolver" => 'resolver',
             ],
             'networks'       => ['default', 'traefik'],
         ])->merge($config)->toArray();
