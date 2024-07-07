@@ -27,6 +27,9 @@ class ComposeUpCommand extends Command
         $this->getPhpVersion();
         $this->getPhpImageName();
         $this->ensureTraefikIsRunning();
+        if (!$this->getEnvAsString()->contains('COMPOSE_PROFILES=')) {
+            $this->setEnv('COMPOSE_PROFILES', 'local');
+        }
 
         $removeOrphans = $this->option('remove-orphans') ? '--remove-orphans' : '';
         $forceRecreate = $this->option('force-recreate') ? '--force-recreate' : '';
@@ -41,7 +44,7 @@ class ComposeUpCommand extends Command
         Compose::tty()->run("up -d $removeOrphans $forceRecreate $timeout");
 
         if ($run_migrations) {
-            Compose::runArtisanCommand("migrate");
+            Compose::tty()->runArtisanCommand("migrate");
         }
 
     }
