@@ -3,6 +3,7 @@
 namespace Braceyourself\Compose\Commands;
 
 use Illuminate\Console\Command;
+use Illuminate\Support\Stringable;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Process;
 use Braceyourself\Compose\Facades\Docker;
@@ -38,7 +39,7 @@ class ComposeDeployCommand extends Command
         // create the remote .env file
         if ($this->shouldCreateRemoteEnvFile($user, $host, $path)) {
             $this->createRemoteEnv($user, $host, $path);
-        }else if($this->shouldUpdateRemoteEnvFile($user, $host, $path)) {
+        } else if ($this->shouldUpdateRemoteEnvFile($user, $host, $path)) {
             $this->updateRemoteEnv($user, $host, $path);
         }
 
@@ -66,10 +67,18 @@ class ComposeDeployCommand extends Command
             'Copying compose file to remote server'
         );
 
-//
-//        Process::tty()->timeout(120)->run("ssh -t {$user}@{$host} 'docker-compose -f {$path}/docker-compose.yml up -d -t0'")->throw();
+        Process::tty()
+            ->timeout(120)
+            ->run("ssh -t {$user}@{$host} 'docker-compose -f {$path}/docker-compose.yml up -d -t0 --remove-orphans'")
+            ->throw();
 
-        $this->info('Deployed in '. now()->longAbsoluteDiffForHumans($start));
+
+        if (!$this->getRemoteEnv($user, $host, $path)->match("APP_KEY=base64:")) {
+            $this->info("Setting APP_KEY on remote server");
+            Process::tty()->run("ssh -t {$user}@{$host} 'cd {$path} && docker-compose exec -T php php artisan key:generate'")->throw();
+        }
+
+        $this->info('Deployed in ' . now()->longAbsoluteDiffForHumans($start));
     }
 
     private function createAppTarball()
@@ -125,13 +134,12 @@ class ComposeDeployCommand extends Command
 
     private function envExampleDiffFromRemote($user, $host, $path)
     {
-        return Cache::store('array')->rememberForever('compose-remote-env'.$user.$host.$path, function () use ($path, $host, $user) {
-            $remote_env = str(Process::run("ssh -q {$user}@{$host} 'cat {$path}/.env'")->throw()->output());
-            return str(file_get_contents('.env.example'))
-                ->explode("\n")
-                ->filter()
-                ->filter(fn($line) => !$remote_env->contains(str($line)->trim("# ")->before('=')));
-        });
+        $remote_env = $this->getRemoteEnv($user, $host, $path);
+
+        return str(file_get_contents('.env.example'))
+            ->explode("\n")
+            ->filter()
+            ->filter(fn($line) => !$remote_env->contains(str($line)->trim("# ")->before('=')));
     }
 
     private function shouldUpdateRemoteEnvFile($user, $host, $path)
@@ -147,14 +155,22 @@ class ComposeDeployCommand extends Command
 
         info("Updating .env file on remote server");
 
-        $res = $diff->map(function($line){
+        $res = $diff->map(function ($line) {
             $line = str($line);
             return str(
                 text($line->before('='), default: $line->after('='))
-            )->prepend($line->before('=').'=')->value();
+            )->prepend($line->before('=') . '=')->value();
         })->join("\n");
 
 
         Process::run("echo '{$res}' | ssh {$user}@{$host} 'cat >> {$path}/.env'")->throw();
+    }
+
+    private function getRemoteEnv($user, $host, $path):Stringable
+    {
+        return Cache::store('array')->rememberForever(
+            'compose-remote-env' . $user . $host . $path,
+            fn() => str(Process::run("ssh -q {$user}@{$host} 'cat {$path}/.env'")->throw()->output())
+        );
     }
 }
