@@ -22,16 +22,24 @@ class ComposeDeployCommand extends Command
 {
     use CreatesComposeServices;
 
-    protected $signature = 'compose:deploy';
+    protected $signature = 'compose:deploy {--down}';
     protected $description = 'Deploy the services';
 
     public function handle()
     {
+
         $start = now();
         $host = $this->getOrSetConfig('compose.deploy.host', fn() => $this->setEnv('COMPOSE_DEPLOY_HOST', text('What is the hostname of the deployment server?')));
         $user = $this->getOrSetConfig('compose.deploy.user', fn() => $this->setEnv('COMPOSE_DEPLOY_USER', text("What user will you use to login to {$host}", default: exec('whoami'))));
         $path = $this->getOrSetConfig('compose.deploy.path', fn() => $this->setEnv('COMPOSE_DEPLOY_PATH', text("Enter the path on {$host} this app should")));
         //$password = $this->getOrSetConfig('compose.deploy.password', fn() => $this->setEnv('COMPOSE_DEPLOY_PASSWORD', password("Enter the password for $user@$host")));
+
+
+        if ($this->option('down')) {
+            Process::tty()->run("ssh {$user}@{$host} docker-compose -f {$path}/docker-compose.yml down")->throw();
+            return;
+        }
+
 
         // ensure the host path exists; also, check that we can login
         Process::run("ssh $user@$host 'mkdir -p $path'")->throw();
