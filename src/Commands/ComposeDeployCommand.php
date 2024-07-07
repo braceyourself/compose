@@ -78,6 +78,9 @@ class ComposeDeployCommand extends Command
             Process::tty()->run("ssh -t {$user}@{$host} 'cd {$path} && docker-compose exec -T php php artisan key:generate'")->throw();
         }
 
+
+        Process::tty()->run("ssh -t {$user}@{$host} 'cd {$path} && docker-compose exec -T php php artisan optimize'")->throw();
+
         $this->info('Deployed in ' . now()->longAbsoluteDiffForHumans($start));
     }
 
