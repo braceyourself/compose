@@ -35,7 +35,9 @@ class ComposeDeployCommand extends Command
         //$password = $this->getOrSetConfig('compose.deploy.password', fn() => $this->setEnv('COMPOSE_DEPLOY_PASSWORD', password("Enter the password for $user@$host")));
 
         if ($this->option('down')) {
-            Process::tty()->run("ssh -t {$user}@{$host} docker-compose -f {$path}/docker-compose.yml down -t0")->throw();
+            spin(fn() => Process::run("ssh {$user}@{$host} docker-compose -f {$path}/docker-compose.yml down -t0")->throw(),
+                "Stopping services on {$host}"
+            );
             return;
         }
 
