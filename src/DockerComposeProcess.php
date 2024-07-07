@@ -24,7 +24,9 @@ class DockerComposeProcess
             return "docker compose $command";
         }
 
-        return "echo '{$this->getComposeYaml()}' | docker compose -f - $command";
+        $config = str($this->getComposeYaml())->replace('${', '\${');
+
+        return "echo '{$config}' | docker compose -f - $command";
     }
 
     public function buildServiceCommand($service, $command): string
