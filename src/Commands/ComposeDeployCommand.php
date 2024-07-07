@@ -129,7 +129,7 @@ class ComposeDeployCommand extends Command
             $remote_env = str(Process::run("ssh -q {$user}@{$host} 'cat {$path}/.env'")->throw()->output());
             return str(file_get_contents('.env.example'))
                 ->explode("\n")
-                ->filter(fn($line) => !$remote_env->contains($line));
+                ->filter(fn($line) => !$remote_env->contains(str($line)->before('=')));
         });
     }
 
