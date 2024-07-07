@@ -25,6 +25,7 @@ class ComposeDeployCommand extends Command
 
     public function handle()
     {
+        $start = now();
         $host = $this->getOrSetConfig('compose.deploy.host', fn() => $this->setEnv('COMPOSE_DEPLOY_HOST', text('What is the hostname of the deployment server?')));
         $user = $this->getOrSetConfig('compose.deploy.user', fn() => $this->setEnv('COMPOSE_DEPLOY_USER', text("What user will you use to login to {$host}", default: exec('whoami'))));
         $path = $this->getOrSetConfig('compose.deploy.path', fn() => $this->setEnv('COMPOSE_DEPLOY_PATH', text("Enter the path on {$host} this app should")));
@@ -61,7 +62,7 @@ class ComposeDeployCommand extends Command
             'Building production image...'
         );
 
-        $this->info('Deployed');
+        $this->info('Deployed in'. $start->diffForHumans(now()));
 
 
 //        Process::tty()->run("ssh {$user}@{$host} 'echo \"{$this->getComposeYaml()}\" > {$path}/docker-compose.yml'")->throw();
