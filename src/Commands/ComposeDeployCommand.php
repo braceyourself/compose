@@ -3,6 +3,7 @@
 namespace Braceyourself\Compose\Commands;
 
 use Illuminate\Console\Command;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Process;
 use Braceyourself\Compose\Facades\Docker;
 use Braceyourself\Compose\Facades\Compose;
@@ -36,7 +37,9 @@ class ComposeDeployCommand extends Command
 
         // create the remote .env file
         if ($this->shouldCreateRemoteEnvFile($user, $host, $path)) {
-            $this->updateEnvOnRemote($user, $host, $path);
+            $this->createRemoteEnv($user, $host, $path);
+        }else if($this->shouldUpdateRemoteEnvFile($user, $host, $path)) {
+            $this->updateRemoteEnv($user, $host, $path);
         }
 
         # create build/deploy directory
@@ -91,8 +94,10 @@ class ComposeDeployCommand extends Command
         return !$exists;
     }
 
-    private function updateEnvOnRemote(mixed $user, mixed $host, mixed $path)
+    private function createRemoteEnv(mixed $user, mixed $host, mixed $path)
     {
+        $remote_ids = str(Process::run("ssh {$user}@{$host} 'id -u && id -g'")->throw()->output())->explode("\n");
+
         info("Creating .env file on remote server");
         $res = textarea("Review & confirm the deployment .env",
             default: str(file_get_contents('.env.example'))
@@ -108,10 +113,46 @@ class ComposeDeployCommand extends Command
                 ->replaceMatches('/(#.)?DB_PASSWORD=.*/', 'DB_PASSWORD=' . password('DB_PASSWORD'))
                 ->explode("\n")
                 ->push("COMPOSE_PROFILES=production")
+                ->push("COMPOSE_PHP_IMAGE={$this->getPhpImageName()}")
+                ->push("USER_ID={$remote_ids->first()}")
+                ->push("GROUP_ID={$remote_ids->last()}")
                 ->join("\n"),
             rows   : 20
         );
 
         Process::run("echo '{$res}' | ssh {$user}@{$host} 'cat > {$path}/.env'")->throw();
+    }
+
+    private function envExampleDiffFromRemote($user, $host, $path)
+    {
+        return Cache::rememberForever('compose-remote-env'.$user.$host.$path, function () use ($path, $host, $user) {
+            $remote_env = str(Process::run("ssh -q {$user}@{$host} 'cat {$path}/.env'")->throw()->output());
+            return str(file_get_contents('.env.example'))
+                ->explode("\n")
+                ->filter(fn($line) => !$remote_env->contains($line));
+        });
+    }
+
+    private function shouldUpdateRemoteEnvFile($user, $host, $path)
+    {
+        return $this->envExampleDiffFromRemote($user, $host, $path)->isNotEmpty()
+            && confirm("There are differences between the .env.example and the remote .env file. Would you like to update the remote .env file?");
+    }
+
+
+    private function updateRemoteEnv($user, $host, $path)
+    {
+        $diff = $this->envExampleDiffFromRemote($user, $host, $path);
+
+        info("Updating .env file on remote server");
+
+        $res = $diff->map(function($line){
+            return str(
+                text($line->before('='), default: $line->after('='))
+            )->prepend($line->before('='))->value();
+        });
+
+
+        Process::run("echo '{$res}' | ssh {$user}@{$host} 'cat >> {$path}/.env'")->throw();
     }
 }
