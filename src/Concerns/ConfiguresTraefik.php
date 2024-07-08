@@ -39,6 +39,7 @@ trait ConfiguresTraefik
 
     private function getTraefikRouterName()
     {
+        return '${COMPOSE_ROUTER}';
         return str(base_path())->basename()->slug();
     }
 }
