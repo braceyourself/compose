@@ -91,7 +91,13 @@ class ComposeDeployCommand extends Command
         $app_path = base_path();
         $tarball = "{$this->build_path}/app.tar";
 
-        Process::run("tar -cf {$tarball} --exclude-vcs --exclude-from='{$this->build_path}/.dockerignore' -C $app_path .")->throw();
+        Process::run(<<<BASH
+        tar -cf {$tarball} \
+            --exclude-vcs \
+            --exclude-from='{$this->build_path}/.dockerignore' \
+            --exclude-from={$app_path}/.dockerignore \
+            -C {$app_path} .
+        BASH)->throw();
 
         return $tarball;
     }
@@ -130,6 +136,7 @@ class ComposeDeployCommand extends Command
                 ->push("COMPOSE_PROFILES=production")
                 ->push("COMPOSE_PHP_IMAGE={$this->getPhpImageName()}")
                 ->push("COMPOSE_DOMAIN=".text("Confirm the domain name", default: str($url)->after('://')->before('/')->value(), hint: "This is the domain name where your app is hosted"))
+                ->push("COMPOSE_ROUTER=".str($url)->after('://')->before('/')->slug())
                 ->push("USER_ID={$remote_ids->first()}")
                 ->push("GROUP_ID={$remote_ids->last()}")
                 ->join("\n"),
