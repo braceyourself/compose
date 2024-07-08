@@ -3,3 +3,8 @@ node_modules
 public/hot
 database/.data
 database/mysql-data
+.github/
+.idea/
+.phpunit.cache
+.vite
+bootstrap/cache/**

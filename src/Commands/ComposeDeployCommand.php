@@ -64,7 +64,7 @@ class ComposeDeployCommand extends Command
         );
 
         // run docker build on server
-        spin(fn() => Process::forever()->run("ssh {$user}@{$host} docker build --target=production -t {$this->getPhpImageName()} {$path}/build")->throw(),
+        spin(fn() => Process::forever()->run("ssh {$user}@{$host} docker build -v '\$HOME/.cache:/var/www/.cache' --target=production -t {$this->getPhpImageName()} {$path}/build")->throw(),
             'Building production image...'
         );
 
