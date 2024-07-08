@@ -71,7 +71,7 @@ class ComposeDeployCommand extends Command
 
         Process::tty()
             ->forever()
-            ->run("ssh -t {$this->user}@{$this->host} 'docker-compose -f {$this->path}/docker-compose.yml up -d -t0 --remove-orphans'")
+            ->run("ssh -t {$this->user}@{$this->host} 'docker-compose -f {$this->path}/docker-compose.yml up -d -t0 --remove-orphans --force-recreate'")
             ->throw();
 
         // set the app key if not set
