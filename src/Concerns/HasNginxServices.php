@@ -9,7 +9,7 @@ trait HasNginxServices
         $hub_username = $this->getDockerHubUsername();
         $app_name = pathinfo(base_path(), PATHINFO_FILENAME);
 
-        return "$hub_username/$app_name-nginx";
+        return str("$hub_username/$app_name-nginx")->trim('/')->value();
     }
 
     private function nginxServiceDefinition($config = [], $env): array
