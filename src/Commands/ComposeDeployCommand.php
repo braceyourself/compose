@@ -124,6 +124,8 @@ class ComposeDeployCommand extends Command
                 ->replaceMatches('/(#.)?DB_DATABASE=.*/', 'DB_DATABASE=' . text('DB_DATABASE', default: pathinfo(base_path(), PATHINFO_FILENAME), hint: "Your database name"))
                 ->replaceMatches('/(#.)?DB_USERNAME=.*/', 'DB_USERNAME=' . text('DB_USERNAME', default: 'admin'))
                 ->replaceMatches('/(#.)?DB_PASSWORD=.*/', 'DB_PASSWORD=' . password('DB_PASSWORD'))
+                ->replaceMatches('/(#.)?REDIS_HOST=.*/', 'REDIS_HOST=redis')
+                ->replaceMatches('/(#.)?QUEUE_CONNECTION=.*/', 'QUEUE_CONNECTION=redis')
                 ->explode("\n")
                 ->push("COMPOSE_PROFILES=production")
                 ->push("COMPOSE_PHP_IMAGE={$this->getPhpImageName()}")
