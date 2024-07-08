@@ -158,8 +158,13 @@ class ComposeDeployCommand extends Command
 
     private function shouldUpdateRemoteEnvFile()
     {
-        return $this->envExampleDiffFromRemote()->isNotEmpty()
-            && confirm("There are differences between the .env.example and the remote .env file. Would you like to update the remote .env file?");
+        if ($this->envExampleDiffFromRemote()->isNotEmpty()) {
+            $this->warn('There are differences between the .env.example and the remote .env file.');
+
+            return confirm("Would you like to update the remote .env file?");
+        }
+
+        return false;
     }
 
 
