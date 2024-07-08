@@ -46,7 +46,7 @@ trait BuildsDockerfile
         
         # set node user and group id
         RUN groupmod -og {$this->getGroupId()} node \
-            && usermod -u {$this->getUserId()} -g {$this->getGroupId()} node \
+            && usermod -u {$this->getUserId()} -g {$this->getGroupId()} -d /var/www node \
             && chown -R node:node /var/www
         
         USER node
