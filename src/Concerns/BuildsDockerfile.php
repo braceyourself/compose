@@ -32,7 +32,9 @@ trait BuildsDockerfile
             && usermod -u {$this->getUserId()} www-data
             
         COPY php_entrypoint.sh /usr/local/bin/entrypoint.sh
-        RUN chmod +x /usr/local/bin/entrypoint.sh
+        RUN chmod +x /usr/local/bin/entrypoint.sh \
+            chown -R www-data:www-data /var/www/html \
+            chown -R www-data:www-data /var/www
 
         USER www-data
         
@@ -73,7 +75,7 @@ trait BuildsDockerfile
         ### production
         FROM app AS production
         
-        RUN composer install --no-dev --no-interaction --no-progress --no-suggest --optimize-autoloader
+        RUN composer install --no-dev --no-interaction --no-progress --optimize-autoloader
         
         DOCKERFILE;
     }
