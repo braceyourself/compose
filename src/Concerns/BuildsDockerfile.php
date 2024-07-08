@@ -33,8 +33,8 @@ trait BuildsDockerfile
             
         COPY php_entrypoint.sh /usr/local/bin/entrypoint.sh
         RUN chmod +x /usr/local/bin/entrypoint.sh \
-            chown -R www-data:www-data /var/www/html \
-            chown -R www-data:www-data /var/www
+            && chown -R www-data:www-data /var/www/html \
+            && chown -R www-data:www-data /var/www
 
         USER www-data
         
