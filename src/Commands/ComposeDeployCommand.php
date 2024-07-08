@@ -25,6 +25,10 @@ class ComposeDeployCommand extends Command
     protected $signature = 'compose:deploy {--down}';
     protected $description = 'Deploy the services';
 
+
+    # create build/deploy directory
+    public string $build_path = __DIR__ . '/../../build';
+
     public function handle()
     {
 
@@ -52,26 +56,18 @@ class ComposeDeployCommand extends Command
             $this->updateRemoteEnv($user, $host, $path);
         }
 
-        # create build/deploy directory
-        $build_path = __DIR__ . '/../../build';
-
         $this->createDockerfile();
         $this->createAppTarball();
 
         // copy the build directory to the server
-        spin(fn() => Process::run("scp -r {$build_path} {$user}@{$host}:{$path}/")->throw(),
+        spin(fn() => Process::run("scp -r {$this->build_path} {$user}@{$host}:{$path}/")->throw(),
             'Copying app to remote server'
-        );
-
-        // run docker build on server
-        spin(fn() => Process::forever()->run("ssh {$user}@{$host} docker build --target=production -t {$this->getPhpImageName()} {$path}/build")->throw(),
-            'Building production image...'
         );
 
         $this->createRemoteComposeFile($user, $host, $path);
 
         Process::tty()
-            ->timeout(120)
+            ->forever()
             ->run("ssh -t {$user}@{$host} 'docker-compose -f {$path}/docker-compose.yml up -d -t0 --remove-orphans'")
             ->throw();
 
@@ -90,10 +86,9 @@ class ComposeDeployCommand extends Command
     private function createAppTarball()
     {
         $app_path = base_path();
-        $build_path = __DIR__ . '/../../build';
-        $tarball = "{$build_path}/app.tar";
+        $tarball = "{$this->build_path}/app.tar";
 
-        Process::run("tar -cf {$tarball} --exclude-vcs --exclude-from='$build_path/.dockerignore' -C $app_path .")->throw();
+        Process::run("tar -cf {$tarball} --exclude-vcs --exclude-from='{$this->build_path}/.dockerignore' -C $app_path .")->throw();
 
         return $tarball;
     }
@@ -119,7 +114,7 @@ class ComposeDeployCommand extends Command
                 ->replaceMatches('/APP_NAME=.*/', 'APP_NAME=' . str(text("APP_NAME", default: config('app.name')))->wrap('"'))
                 ->replaceMatches('/APP_ENV=.*/', 'APP_ENV=production')
                 ->replaceMatches('/APP_DEBUG=.*/', 'APP_DEBUG=false')
-                ->replaceMatches('/APP_URL=.*/', 'APP_URL=' . text('APP_URL', default: "https://"))
+                ->replaceMatches('/APP_URL=.*/', 'APP_URL=' . $url = text('APP_URL', default: "https://"))
                 ->replaceMatches('/DB_CONNECTION=.*/', 'DB_CONNECTION=mysql')
                 ->replaceMatches('/(#.)?DB_HOST=.*/', 'DB_HOST=mysql')
                 ->replaceMatches('/(#.)?DB_PORT=.*/', 'DB_PORT=3306')
@@ -129,6 +124,7 @@ class ComposeDeployCommand extends Command
                 ->explode("\n")
                 ->push("COMPOSE_PROFILES=production")
                 ->push("COMPOSE_PHP_IMAGE={$this->getPhpImageName()}")
+                ->push("COMPOSE_DOMAIN=".text("Confirm the domain name", default: str($url)->after('://')->before('/')->value(), hint: "This is the domain name where your app is hosted"))
                 ->push("USER_ID={$remote_ids->first()}")
                 ->push("GROUP_ID={$remote_ids->last()}")
                 ->join("\n"),
