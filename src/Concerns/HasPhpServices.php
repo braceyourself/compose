@@ -13,7 +13,7 @@ trait HasPhpServices
             'user'        => '${USER_ID}:${GROUP_ID}',
             'volumes'     => $this->getPhpVolumes($env),
             'build'       => [
-                'context'    => $env == 'production' ? './build' : __DIR__ . '/../../build',
+                'context'    => $env == 'production' ? './build' : $this->getLocalBuildPath(),
                 'target'     => $env == 'production' ? 'production' : 'app',
                 'dockerfile' => 'Dockerfile',
             ],

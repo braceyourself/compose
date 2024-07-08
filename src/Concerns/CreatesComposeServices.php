@@ -75,4 +75,13 @@ trait CreatesComposeServices
             ]
         ];
     }
+
+    public function getLocalBuildPath()
+    {
+        if (file_exists(base_path('build'))) {
+            return base_path('build');
+        }
+
+        return __DIR__ . '/../../build';
+    }
 }
