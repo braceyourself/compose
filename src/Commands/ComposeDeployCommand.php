@@ -63,9 +63,9 @@ class ComposeDeployCommand extends Command
 
         $this->runRemoteComposeCommand("build");
 
-        $this->runRemoteComposeCommand("up -d -t0 --remove-orphans --force-recreate");
-
         $this->setUpStorage();
+
+        $this->runRemoteComposeCommand("up -d -t0 --remove-orphans --force-recreate");
 
         $this->ensureAppKeyIsSet();
 
@@ -217,6 +217,8 @@ class ComposeDeployCommand extends Command
         
         # ensure all app storage directories exist
         mkdir -p storage/framework/{sessions,views,cache}
+        mkdir -p storage/app/public
+        mkdir -p storage/logs
             
         // directories should have 755 permissions
         find storage -type d -exec chmod 755 -- {} +
