@@ -44,6 +44,15 @@ trait BuildsDockerfile
         FROM node AS npm
         WORKDIR /var/www/html
         
+        ARG VITE_APP_NAME
+        ARG VITE_PUSHER_APP_KEY
+        ARG VITE_PUSHER_HOST
+        ARG VITE_PUSHER_PORT
+        ARG VITE_PUSHER_PORT_SECURE
+        ARG VITE_PUSHER_SCHEME
+        ARG VITE_PUSHER_APP_CLUSTER
+        ARG VITE_PUSHER_APP_HOST
+        
         # set node user and group id
         RUN groupmod -og {$this->getGroupId()} node \
             && usermod -u {$this->getUserId()} -g {$this->getGroupId()} -d /var/www node \

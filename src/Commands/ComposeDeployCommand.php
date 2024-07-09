@@ -62,9 +62,11 @@ class ComposeDeployCommand extends Command
         );
 
 
-        $args = str(collect($this->getRemoteEnv()->explode("\n"))->filter()->map(fn($value) => "--build-arg='{$value}'")->join(' '))->trim(' ');
+        $vite_args = str(collect($this->getRemoteEnv()->explode("\n"))
+            ->filter(fn($line) => str($line)->startsWith('VITE_'))
+            ->map(fn($value) => "--build-arg '{$value}'")->join(' '))->trim(' ');
 
-        $this->runRemoteComposeCommand("build {$args}");
+        $this->runRemoteComposeCommand("build {$vite_args}");
 
         $this->setUpStorage();
 
