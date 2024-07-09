@@ -57,6 +57,8 @@ class ComposeDeployCommand extends Command
             'Copying app to remote server'
         );
 
+        $this->extractAppTarball();
+
         spin(fn() => $this->createRemoteComposeFile(),
             'Setting up docker-compose.yml'
         );
@@ -84,14 +86,20 @@ class ComposeDeployCommand extends Command
         $app_path = base_path();
         $tarball = "{$this->build_path}/app.tar";
 
-        Process::run(<<<BASH
-        tar -cf {$tarball} \
-            --exclude-vcs \
-            --exclude-from='{$this->build_path}/.dockerignore' \
-            --exclude-from={$app_path}/.dockerignore \
-            -C {$app_path} .
-        BASH
-        )->throw();
+        if (file_exists(base_path('.git'))) {
+            Process::run(<<<BASH
+            git archive --format=tar --output={$tarball} HEAD
+            BASH)->throw();
+        }else{
+            Process::run(<<<BASH
+            tar -cf {$tarball} \
+                --exclude-vcs \
+                --exclude-from='{$this->build_path}/.dockerignore' \
+                --exclude-from={$app_path}/.dockerignore \
+                -C {$app_path} .
+            BASH)->throw();
+        }
+
 
         return $tarball;
     }
@@ -282,5 +290,15 @@ class ComposeDeployCommand extends Command
     private function runArtisanCommand(string $command)
     {
         $this->runRemoteScript("docker-compose -f {$this->path}/docker-compose.yml exec -T php php {$command}");
+    }
+
+    private function extractAppTarball()
+    {
+        $this->runRemoteScript(<<<BASH
+        cd {$this->path}/build
+        tar -xf app.tar
+        BASH
+        );
+
     }
 }
