@@ -42,9 +42,12 @@ class ComposeDeployCommand extends Command
         );
 
         if ($this->option('down')) {
-            return spin(fn() => $this->runRemoteComposeCommand("down -t0"),
+            spin(fn() => $this->runRemoteComposeCommand("down -t0"),
                 "Stopping services on {$this->host}"
             );
+
+            $this->info("Services stopped on {$this->host}");
+            return;
         }
 
         $this->updateOrCreateEnv();
