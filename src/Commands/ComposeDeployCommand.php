@@ -42,7 +42,7 @@ class ComposeDeployCommand extends Command
         );
 
         if ($this->option('down')) {
-            return spin(fn() => $this->runRemoteComposeCommand("down -t0")->throw(),
+            return spin(fn() => $this->runRemoteComposeCommand("down -t0"),
                 "Stopping services on {$this->host}"
             );
         }
@@ -254,7 +254,7 @@ class ComposeDeployCommand extends Command
 
     private function runRemoteComposeCommand(string $command)
     {
-        Process::tty()
+         Process::tty()
             ->forever()
             ->run("ssh -t {$this->user}@{$this->host} 'docker-compose -f {$this->path}/docker-compose.yml {$command}'")
             ->throw();
