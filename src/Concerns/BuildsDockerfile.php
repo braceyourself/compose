@@ -43,7 +43,7 @@ trait BuildsDockerfile
         ### app ###
         FROM php AS app
         
-        COPY composer.json composer.lock artisan boostrap/ ./
+        COPY composer.json composer.lock artisan bootstrap/ ./
         RUN composer install --no-dev --no-interaction --no-progress --optimize-autoloader
         COPY . .
         
