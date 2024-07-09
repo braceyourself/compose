@@ -60,17 +60,11 @@ trait BuildsDockerfile
         
         USER node
         
-        COPY --chown=node:node app.tar /var/www
+        #COPY --chown=node:node app.tar /var/www
+        ADD app.tar /var/www/html
         
         RUN rm -rf /var/www/.npm \
-            && tar -xf /var/www/app.tar "./package.json" \
-            && tar -xf /var/www/app.tar "./package-lock.json" \
             && npm install \
-            && tar -xf /var/www/app.tar "./tailwind.config.js" \
-            && tar -xf /var/www/app.tar "./postcss.config.js" \
-            && tar -xf /var/www/app.tar "./vite.config.js" \
-            && tar -xf /var/www/app.tar "./resources" \
-            && tar -xf /var/www/app.tar "./public" \
             && npm run build
         
          
