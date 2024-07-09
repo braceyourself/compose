@@ -39,7 +39,7 @@ trait BuildsDockerfile
         USER www-data
         
         COPY composer.json composer.lock ./
-        RUN composer install --no-dev --no-interaction --no-progress --no-autoloader --no-scripts
+        RUN composer install --no-dev --no-interaction --no-progress --no-scripts
         COPY . .
         RUN composer run-script post-autoload-dump
         
