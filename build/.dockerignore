@@ -8,3 +8,4 @@ database/mysql-data
 .phpunit.cache
 .vite
 bootstrap/cache/**
+storage/logs/*.log
