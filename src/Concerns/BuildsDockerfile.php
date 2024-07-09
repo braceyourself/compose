@@ -74,12 +74,12 @@ trait BuildsDockerfile
          
         ### production
         FROM php AS production
-        COPY --from=app /var/www/html/public /var/www/html/public
+        COPY --from=npm /var/www/html/public /var/www/html/public
         
         ### nginx ###
         FROM nginx AS nginx
         COPY nginx.conf /etc/nginx/templates/default.conf.template
-        COPY --from=app /var/www/html/public /var/www/html/public
+        COPY --from=npm /var/www/html/public /var/www/html/public
         
         
         DOCKERFILE;
