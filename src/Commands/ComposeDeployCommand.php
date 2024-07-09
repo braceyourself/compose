@@ -35,14 +35,14 @@ class ComposeDeployCommand extends Command
     {
         $start = now();
 
-        $this->getLoadServerCredentials();
+        $this->loadServerCredentials();
 
         spin(fn() => Process::run("ssh $this->user@$this->host 'mkdir -p $this->path'")->throw(),
             "Logging in to server..."
         );
 
         if ($this->option('down')) {
-            return spin(fn() => Process::run("ssh {$this->user}@{$this->host} docker-compose -f {$this->path}/docker-compose.yml down -t0")->throw(),
+            return spin(fn() => $this->runRemoteComposeCommand("down -t0")->throw(),
                 "Stopping services on {$this->host}"
             );
         }
@@ -279,7 +279,7 @@ class ComposeDeployCommand extends Command
         }
     }
 
-    private function getLoadServerCredentials()
+    private function loadServerCredentials()
     {
         $this->host = $this->getOrSetConfig('compose.deploy.host', fn() => $this->setEnv('COMPOSE_DEPLOY_HOST', text('What is the hostname of the deployment server?')));
         $this->user = $this->getOrSetConfig('compose.deploy.user', fn() => $this->setEnv('COMPOSE_DEPLOY_USER', text("What user will you use to login to {$this->host}", default: exec('whoami'))));
