@@ -62,7 +62,7 @@ class ComposeDeployCommand extends Command
         );
 
 
-        $args = str(collect($this->getRemoteEnv()->explode("\n"))->filter()->map(fn($value, $key) => "--build-arg='{$key}={$value}'")->join(' '))->trim(' ');
+        $args = str(collect($this->getRemoteEnv()->explode("\n"))->filter()->map(fn($value) => "--build-arg='{$value}'")->join(' '))->trim(' ');
 
         $this->runRemoteComposeCommand("build {$args}");
 
