@@ -66,6 +66,8 @@ trait BuildsDockerfile
             && tar -xf /var/www/app.tar "./package.json" \
             && tar -xf /var/www/app.tar "./package-lock.json" \
             && npm install \
+            && tar -xf /var/www/app.tar "./tailwind.config.js" \
+            && tar -xf /var/www/app.tar "./postcss.config.js" \
             && tar -xf /var/www/app.tar "./vite.config.js" \
             && tar -xf /var/www/app.tar "./resources" \
             && tar -xf /var/www/app.tar "./public" \
