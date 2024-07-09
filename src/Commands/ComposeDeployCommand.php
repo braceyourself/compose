@@ -61,7 +61,10 @@ class ComposeDeployCommand extends Command
             'Setting up docker-compose.yml'
         );
 
-        $this->runRemoteComposeCommand("build");
+
+        $args = str(collect($this->getRemoteEnv()->explode("\n"))->filter()->map(fn($value, $key) => "--build-arg='{$key}={$value}'")->join(' '))->trim(' ');
+
+        $this->runRemoteComposeCommand("build {$args}");
 
         $this->setUpStorage();
 
