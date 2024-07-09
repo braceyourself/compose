@@ -58,7 +58,7 @@ class ComposeDeployCommand extends Command
         );
 
         spin(fn() => $this->createRemoteComposeFile(),
-            'Copying compose file to remote server'
+            'Setting up docker-compose.yml'
         );
 
         $this->runRemoteComposeCommand("build");

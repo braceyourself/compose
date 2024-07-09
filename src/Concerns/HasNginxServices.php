@@ -28,10 +28,7 @@ trait HasNginxServices
             ],
             'depends_on'     => ['php'],
             'volumes'        => $this->getNginxVolumes($env),
-            'labels'         => [
-                "traefik.http.routers.{$this->getTraefikRouterName()}.tls"              => $env == 'production',
-                "traefik.http.routers.{$this->getTraefikRouterName()}.tls.certresolver" => 'resolver',
-            ],
+            'labels'         => $this->getNginxLabels($env),
             'networks'       => ['default', 'traefik'],
         ])->merge($config)->toArray();
     }
@@ -44,6 +41,17 @@ trait HasNginxServices
             ],
             default => [
                 './storage:/var/www/html/storage',
+            ]
+        };
+    }
+
+    public function getNginxLabels($env)
+    {
+        return match($env){
+            'local' => [],
+            default => [
+                "traefik.http.routers.{$this->getTraefikRouterName()}.tls"              => $env == 'production',
+                "traefik.http.routers.{$this->getTraefikRouterName()}.tls.certresolver" => 'resolver',
             ]
         };
     }

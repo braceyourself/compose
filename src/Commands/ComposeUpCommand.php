@@ -41,12 +41,16 @@ class ComposeUpCommand extends Command
 
         $run_migrations = $this->hasPendingMigrations() && confirm("There are pending migrations. Would you like to run them?");
 
+        Process::tty()
+            ->forever()
+            ->run(Compose::buildCommand("build"))
+            ->throw();
+
         Compose::tty()->run("up -d $removeOrphans $forceRecreate $timeout");
 
         if ($run_migrations) {
             Compose::tty()->runArtisanCommand("migrate");
         }
-
     }
 
     private function hasPendingMigrations()
