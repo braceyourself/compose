@@ -63,7 +63,6 @@ trait BuildsDockerfile
         COPY --chown=node:node app.tar /var/www
         
         RUN tar -xf /var/www/app.tar "./package.json" \
-            && tar -xf /var/www/app.tar "./package-lock.json" \
             && npm install \
             && tar -xf /var/www/app.tar "./vite.config.js" \
             && tar -xf /var/www/app.tar "./resources" \
