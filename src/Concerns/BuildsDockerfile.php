@@ -43,9 +43,9 @@ trait BuildsDockerfile
         ### app ###
         FROM php AS app
         
-        ADD app.tar /var/www/html
+        COPY composer.json composer.lock ./
         RUN composer install --no-dev --no-interaction --no-progress --optimize-autoloader
-        
+        COPY . .
         
         ### npm ###
         FROM node AS npm
