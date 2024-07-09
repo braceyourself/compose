@@ -44,7 +44,6 @@ trait BuildsDockerfile
         FROM php AS app
         
         ADD app.tar /var/www/html
-        COPY --chown=www-data:www-data --from=npm /var/www/html/public /var/www/html/public
         RUN composer install --no-dev --no-interaction --no-progress --optimize-autoloader
         
         
