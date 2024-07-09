@@ -43,10 +43,10 @@ trait BuildsDockerfile
         ### app ###
         FROM php AS app
         
-        COPY composer.json composer.lock artisan ./
-        COPY bootstrap/ ./bootstrap/
-        RUN composer install --no-dev --no-interaction --no-progress --optimize-autoloader
+        COPY composer.json composer.lock ./
+        RUN composer install --no-dev --no-interaction --no-progress
         COPY . .
+        RUN composer dump-autoload --optimize
         
         ### npm ###
         FROM node AS npm
