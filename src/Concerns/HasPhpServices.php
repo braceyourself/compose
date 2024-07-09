@@ -62,9 +62,10 @@ trait HasPhpServices
     {
         return match($env){
             'local' => $this->getLocalPhpVolumes(),
-            'production' => [
+            default => [
                 '$HOME/.config/psysh:/var/www/.config/psysh',
                 './.env:/var/www/html/.env',
+                './storage:/var/www/html/storage',
             ]
         };
     }

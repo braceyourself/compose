@@ -13,6 +13,7 @@ use Braceyourself\Compose\Concerns\CreatesComposeServices;
 use function Laravel\Prompts\text;
 use function Laravel\Prompts\spin;
 use function Laravel\Prompts\info;
+use function Laravel\Prompts\select;
 use function Laravel\Prompts\confirm;
 use function Laravel\Prompts\warning;
 use function Laravel\Prompts\password;
@@ -25,9 +26,7 @@ class ComposeDeployCommand extends Command
     protected $signature = 'compose:deploy {--down}';
     protected $description = 'Deploy the services';
 
-
-    # create build/deploy directory
-    public string $build_path = __DIR__ . '/../../build';
+    private string $build_path = __DIR__ . '/../../build';
     private mixed $user;
     private mixed $host;
     private mixed $path;
@@ -36,52 +35,41 @@ class ComposeDeployCommand extends Command
     {
         $start = now();
 
-        $this->host = $this->getOrSetConfig('compose.deploy.host', fn() => $this->setEnv('COMPOSE_DEPLOY_HOST', text('What is the hostname of the deployment server?')));
-        $this->user = $this->getOrSetConfig('compose.deploy.user', fn() => $this->setEnv('COMPOSE_DEPLOY_USER', text("What user will you use to login to {$this->host}", default: exec('whoami'))));
-        $this->path = $this->getOrSetConfig('compose.deploy.path', fn() => $this->setEnv('COMPOSE_DEPLOY_PATH', text("Enter the path on {$this->host} this app should")));
-        //$password = $this->getOrSetConfig('compose.deploy.password', fn() => $this->setEnv('COMPOSE_DEPLOY_PASSWORD', password("Enter the password for $user@$host")));
+        $this->getLoadServerCredentials();
+
+        spin(fn() => Process::run("ssh $this->user@$this->host 'mkdir -p $this->path'")->throw(),
+            "Logging in to server..."
+        );
 
         if ($this->option('down')) {
-            spin(fn() => Process::run("ssh {$this->user}@{$this->host} docker-compose -f {$this->path}/docker-compose.yml down -t0")->throw(),
+            return spin(fn() => Process::run("ssh {$this->user}@{$this->host} docker-compose -f {$this->path}/docker-compose.yml down -t0")->throw(),
                 "Stopping services on {$this->host}"
             );
-            return;
         }
 
-
-        // ensure the host path exists; also, check that we can login
-        Process::run("ssh $this->user@$this->host 'mkdir -p $this->path'")->throw();
-
-        // create the remote .env file
-        if ($this->shouldCreateRemoteEnvFile()) {
-            $this->createRemoteEnv();
-        } else if ($this->shouldUpdateRemoteEnvFile()) {
-            $this->updateRemoteEnv();
-        }
+        $this->updateOrCreateEnv();
 
         $this->createDockerfile();
+
         $this->createAppTarball();
 
-        // copy the build directory to the server
-        spin(fn() => Process::run("scp -r {$this->build_path} {$this->user}@{$this->host}:{$this->path}/")->throw(),
+        spin(fn() => $this->copyToServer($this->build_path, $this->path),
             'Copying app to remote server'
         );
 
-        $this->createRemoteComposeFile();
+        spin(fn() => $this->createRemoteComposeFile(),
+            'Copying compose file to remote server'
+        );
 
-        Process::tty()
-            ->forever()
-            ->run("ssh -t {$this->user}@{$this->host} 'docker-compose -f {$this->path}/docker-compose.yml up -d -t0 --build --remove-orphans --force-recreate'")
-            ->throw();
+        $this->runRemoteComposeCommand("build");
 
-        // set the app key if not set
-        if (!$this->getRemoteEnv()->contains("APP_KEY=base64:")) {
-            $this->info("Setting APP_KEY on remote server");
-            Process::tty()->run("ssh -t {$this->user}@{$this->host} 'cd {$this->path} && docker-compose exec -T php php artisan key:generate'")->throw();
-        }
+        $this->runRemoteComposeCommand("up -d -t0 --remove-orphans --force-recreate");
 
-        // optimize app
-        Process::tty()->run("ssh -t {$this->user}@{$this->host} 'cd {$this->path} && docker-compose exec -T php php artisan optimize'")->throw();
+        $this->setUpStorage();
+
+        $this->ensureAppKeyIsSet();
+
+        $this->runArtisanCommand("artisan optimize");
 
         $this->info('Deployed in ' . now()->longAbsoluteDiffForHumans($start));
     }
@@ -97,7 +85,8 @@ class ComposeDeployCommand extends Command
             --exclude-from='{$this->build_path}/.dockerignore' \
             --exclude-from={$app_path}/.dockerignore \
             -C {$app_path} .
-        BASH)->throw();
+        BASH
+        )->throw();
 
         return $tarball;
     }
@@ -124,9 +113,22 @@ class ComposeDeployCommand extends Command
                 ->replaceMatches('/APP_ENV=.*/', 'APP_ENV=production')
                 ->replaceMatches('/APP_DEBUG=.*/', 'APP_DEBUG=false')
                 ->replaceMatches('/APP_URL=.*/', 'APP_URL=' . $url = text('APP_URL', default: "https://"))
-                ->replaceMatches('/DB_CONNECTION=.*/', 'DB_CONNECTION=mysql')
-                ->replaceMatches('/(#.)?DB_HOST=.*/', 'DB_HOST=mysql')
-                ->replaceMatches('/(#.)?DB_PORT=.*/', 'DB_PORT=3306')
+                ->replaceMatches('/DB_CONNECTION=.*/', 'DB_CONNECTION=' . $db_conn = select('DB_CONNECTION', [
+                        'mysql',
+                        'pgsql',
+                        'sqlite',
+                    ])
+                )
+                ->replaceMatches('/(#.)?DB_HOST=.*/', 'DB_HOST=' . text('DB_HOST', default: 'mysql', hint: "The server address where your database is hosted."))
+                ->when(in_array($db_conn, ['mysql', 'pgsql']), function ($c) use ($db_conn) {
+                    return $c->replaceMatches(
+                        '/(#.)?DB_PORT=.*/', 'DB_PORT=' . text('DB_PORT',
+                            default: match ($db_conn) {
+                                'mysql' => 3306,
+                                'pgsql' => 5432,
+                            })
+                    );
+                })
                 ->replaceMatches('/(#.)?DB_DATABASE=.*/', 'DB_DATABASE=' . text('DB_DATABASE', default: pathinfo(base_path(), PATHINFO_FILENAME), hint: "Your database name"))
                 ->replaceMatches('/(#.)?DB_USERNAME=.*/', 'DB_USERNAME=' . text('DB_USERNAME', default: 'admin'))
                 ->replaceMatches('/(#.)?DB_PASSWORD=.*/', 'DB_PASSWORD=' . password('DB_PASSWORD'))
@@ -135,8 +137,8 @@ class ComposeDeployCommand extends Command
                 ->explode("\n")
                 ->push("COMPOSE_PROFILES=production")
                 ->push("COMPOSE_PHP_IMAGE={$this->getPhpImageName()}")
-                ->push("COMPOSE_DOMAIN=".text("Confirm the domain name", default: str($url)->after('://')->before('/')->value(), hint: "This is the domain name where your app is hosted"))
-                ->push("COMPOSE_ROUTER=".str($url)->after('://')->before('/')->slug())
+                ->push("COMPOSE_DOMAIN=" . $domain = text("Confirm the domain name", default: str($url)->after('://')->before('/')->value(), hint: "This is the domain name where your app is hosted"))
+                ->push("COMPOSE_ROUTER=" . str($domain)->slug())
                 ->push("USER_ID={$remote_ids->first()}")
                 ->push("GROUP_ID={$remote_ids->last()}")
                 ->join("\n"),
@@ -185,19 +187,93 @@ class ComposeDeployCommand extends Command
         Process::run("echo '{$res}' | ssh {$this->user}@{$this->host} 'cat >> {$this->path}/.env'")->throw();
     }
 
-    private function getRemoteEnv():Stringable
+    private function getRemoteEnv($name = null): Stringable
     {
-        return Cache::store('array')->rememberForever(
+        $env = Cache::store('array')->rememberForever(
             'compose-remote-env' . $this->user . $this->host . $this->path,
             fn() => str(Process::run("ssh -q {$this->user}@{$this->host} 'cat {$this->path}/.env'")->throw()->output())
         );
+
+        if ($name) {
+            return $env->explode("\n")
+                ->mapInto(Stringable::class)
+                ->filter(fn($line) => $line->startsWith($name))
+                ->first();
+        }
+
+        return $env;
     }
 
     private function createRemoteComposeFile()
     {
         file_put_contents('/tmp/docker-compose.yml', $this->getComposeYaml('production'));
-        spin(fn() => Process::run("scp -r /tmp/docker-compose.yml {$this->user}@{$this->host}:{$this->path}/")->throw(),
-            'Copying compose file to remote server'
-        );
+        $this->copyToServer('/tmp/docker-compose.yml', $this->path);
+    }
+
+    private function setUpStorage()
+    {
+        $this->runRemoteScript(<<<BASH
+        cd {$this->path} 
+        
+        # ensure all app storage directories exist
+        mkdir -p storage/framework/{sessions,views,cache}
+            
+        // directories should have 755 permissions
+        find storage -type d -exec chmod 755 -- {} +
+        
+        // files should have 644 permissions
+        find storage -type f -exec chmod 644 -- {} +
+        
+        BASH);
+    }
+
+    private function runRemoteScript(string $script)
+    {
+        Process::run("ssh -t {$this->user}@{$this->host} '{$script}'")->throw();
+    }
+
+    private function copyToServer(string $build_path, mixed $path)
+    {
+        Process::run("scp -r {$build_path} {$this->user}@{$this->host}:{$path}/")->throw();
+    }
+
+    private function runRemoteComposeCommand(string $command)
+    {
+        Process::tty()
+            ->forever()
+            ->run("ssh -t {$this->user}@{$this->host} 'docker-compose -f {$this->path}/docker-compose.yml {$command}'")
+            ->throw();
+    }
+
+    private function ensureAppKeyIsSet()
+    {
+        // set the app key if not set
+        if ($this->getRemoteEnv('APP_KEY')->after('=')->isEmpty()) {
+            $this->info("Setting APP_KEY on remote server");
+            $this->runArtisanCommand("artisan key:generate");
+        }
+    }
+
+    private function updateOrCreateEnv()
+    {
+        // create the remote .env file
+        if ($this->shouldCreateRemoteEnvFile()) {
+            $this->createRemoteEnv();
+        } else if ($this->shouldUpdateRemoteEnvFile()) {
+            $this->updateRemoteEnv();
+        }
+    }
+
+    private function getLoadServerCredentials()
+    {
+        $this->host = $this->getOrSetConfig('compose.deploy.host', fn() => $this->setEnv('COMPOSE_DEPLOY_HOST', text('What is the hostname of the deployment server?')));
+        $this->user = $this->getOrSetConfig('compose.deploy.user', fn() => $this->setEnv('COMPOSE_DEPLOY_USER', text("What user will you use to login to {$this->host}", default: exec('whoami'))));
+        $this->path = $this->getOrSetConfig('compose.deploy.path', fn() => $this->setEnv('COMPOSE_DEPLOY_PATH', text("Enter the path on {$this->host} this app should")));
+        //$password = $this->getOrSetConfig('compose.deploy.password', fn() => $this->setEnv('COMPOSE_DEPLOY_PASSWORD', password("Enter the password for $user@$host")));
+    }
+
+    private function runArtisanCommand(string $command)
+    {
+        $this->runRemoteScript("docker-compose -f {$this->path}/docker-compose.yml exec -T php php {$command}");
     }
 }

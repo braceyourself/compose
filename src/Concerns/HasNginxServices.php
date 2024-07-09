@@ -12,7 +12,7 @@ trait HasNginxServices
         return str("$hub_username/$app_name-nginx")->trim('/')->value();
     }
 
-    private function nginxServiceDefinition($config = [], $env): array
+    private function nginxServiceDefinition($config = [], $env = 'local'): array
     {
         return collect([
             'image'          => $this->getNginxImageName(),
@@ -27,11 +27,24 @@ trait HasNginxServices
                 'PROXY_PASS_PORT' => '9000',
             ],
             'depends_on'     => ['php'],
+            'volumes'        => $this->getNginxVolumes($env),
             'labels'         => [
-                "traefik.http.routers.{$this->getTraefikRouterName()}.tls" => $env == 'production',
+                "traefik.http.routers.{$this->getTraefikRouterName()}.tls"              => $env == 'production',
                 "traefik.http.routers.{$this->getTraefikRouterName()}.tls.certresolver" => 'resolver',
             ],
             'networks'       => ['default', 'traefik'],
         ])->merge($config)->toArray();
+    }
+
+    public function getNginxVolumes($env)
+    {
+        return match ($env) {
+            'local' => [
+                './:/var/www/html',
+            ],
+            default => [
+                './storage:/var/www/html/storage',
+            ]
+        };
     }
 }
