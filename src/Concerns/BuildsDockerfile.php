@@ -40,7 +40,15 @@ trait BuildsDockerfile
         
         ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]
         
-        ### npm
+        ### app ###
+        FROM php AS app
+        
+        ADD app.tar /var/www/html
+        COPY --chown=www-data:www-data --from=npm /var/www/html/public /var/www/html/public
+        RUN composer install --no-dev --no-interaction --no-progress --optimize-autoloader
+        
+        
+        ### npm ###
         FROM node AS npm
         WORKDIR /var/www/html
         
@@ -60,29 +68,26 @@ trait BuildsDockerfile
         
         USER node
         
-        #COPY --chown=node:node app.tar /var/www
-        ADD app.tar /var/www/html
+        COPY --from=app /var/www/html /var/www/html
         
         RUN rm -rf /var/www/.npm \
             && npm install \
             && npm run build
         
          
-        ### app
-        FROM php AS app
-        
-        ADD app.tar /var/www/html
-        COPY --chown=www-data:www-data --from=npm /var/www/html/public /var/www/html/public
-        
-        ### nginx
-        FROM nginx AS nginx
-        COPY nginx.conf /etc/nginx/templates/default.conf.template
-        COPY --from=app /var/www/html/public /var/www/html/public
         
         ### production
         FROM app AS production
         
-        RUN composer install --no-dev --no-interaction --no-progress --optimize-autoloader
+        COPY --from=app /var/www/html/public /var/www/html/public
+        
+        
+        
+        ### nginx ###
+        FROM nginx AS nginx
+        COPY nginx.conf /etc/nginx/templates/default.conf.template
+        COPY --from=app /var/www/html/public /var/www/html/public
+        
         
         DOCKERFILE;
     }
