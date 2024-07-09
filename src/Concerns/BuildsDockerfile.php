@@ -62,8 +62,14 @@ trait BuildsDockerfile
         
         COPY --chown=node:node app.tar /var/www
         
-        ADD app.tar /var/www/html
-        RUN npm install && npm run build
+        RUN tar -xf /var/www/app.tar "./package.json" \
+            && tar -xf /var/www/app.tar "./package-lock.json" \
+            && npm install \
+            && tar -xf /var/www/app.tar "./vite.config.js" \
+            && tar -xf /var/www/app.tar "./resources" \
+            && tar -xf /var/www/app.tar "./public" \
+            && npm run build
+        
          
         ### app
         FROM php AS app
