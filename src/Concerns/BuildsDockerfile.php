@@ -38,15 +38,13 @@ trait BuildsDockerfile
 
         USER www-data
         
-        ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]
-        
-        ### app ###
-        FROM php AS app
-        
         COPY composer.json composer.lock ./
         RUN composer install --no-dev --no-interaction --no-progress --no-autoloader --no-scripts
         COPY . .
-        RUN composer run-script post-install-cmd
+        RUN composer run-script post-autoload-dump
+        
+        ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]
+        
         
         ### npm ###
         FROM node AS npm
@@ -68,20 +66,15 @@ trait BuildsDockerfile
         
         USER node
         
-        COPY --from=app /var/www/html /var/www/html
+        COPY --from=php /var/www/html /var/www/html
         
         RUN rm -rf /var/www/.npm \
             && npm install \
             && npm run build
-        
          
-        
         ### production
-        FROM app AS production
-        
+        FROM php AS production
         COPY --from=app /var/www/html/public /var/www/html/public
-        
-        
         
         ### nginx ###
         FROM nginx AS nginx
