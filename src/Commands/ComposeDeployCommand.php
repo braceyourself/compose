@@ -81,6 +81,8 @@ class ComposeDeployCommand extends Command
 
         $this->runArtisanCommand("artisan optimize");
 
+        $this->cleanUpDeploy();
+
         $this->info('Deployed in ' . now()->longAbsoluteDiffForHumans($start));
     }
 
@@ -190,7 +192,7 @@ class ComposeDeployCommand extends Command
     {
         $diff = $this->envExampleDiffFromRemote();
 
-        info("Updating .env file on remote server");
+        $this->info("Updating .env file on remote server");
 
         $res = $diff->map(function ($line) {
             $line = str($line);
@@ -303,5 +305,10 @@ class ComposeDeployCommand extends Command
         BASH
         );
 
+    }
+
+    private function cleanUpDeploy()
+    {
+        $this->runRemoteScript("rm -rf {$this->path}/build");
     }
 }
