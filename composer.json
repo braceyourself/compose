@@ -8,6 +8,11 @@
             "Braceyourself\\Compose\\": "src/"
         }
     },
+    "autoload-dev": {
+        "psr-4": {
+            "Tests\\": "tests/"
+        }
+    },
     "authors": [
         {
             "name": "braceyourself",
@@ -26,5 +31,9 @@
                 "Braceyourself\\Compose\\ComposeServiceProvider"
             ]
         }
+    },
+    "require-dev": {
+        "phpunit/phpunit": "^11.2",
+        "orchestra/testbench": "^9.1"
     }
 }

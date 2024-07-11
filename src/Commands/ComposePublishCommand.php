@@ -22,7 +22,7 @@ class ComposePublishCommand extends Command
 
     public function handle()
     {
-        $publish_path = $this->option('publish-path') ?? base_path();
+        $publish_path = $this->option('publish-path') ?: base_path();
         $compose_build_dir = __DIR__.'/../../build';
 
         $this->createDockerfile();

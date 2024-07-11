@@ -2,46 +2,23 @@
 
 namespace Braceyourself\Compose\Concerns;
 
+use Illuminate\Support\Stringable;
 use Illuminate\Support\Facades\Process;
 use Illuminate\Support\Facades\Artisan;
-use function Laravel\Prompts\text;
-use function Laravel\Prompts\info;
-use function Laravel\Prompts\confirm;
 
 trait HasDatabaseServices
 {
     private function databaseServiceDefinition($config = []): array
     {
-        $env = str(file_get_contents('.env'));
-        if ($env->contains(['# DB_', '#DB_']) && confirm("There are commented DB_ values in your .env. Would you like to update them?")) {
-            // loop over the env DB_* values
-            $env->explode("\n")->each(function ($line) {
-                $line = str($line);
-                if ($line->startsWith('#') && $line->contains('DB_')) {
-                    $key = $line->before('=')->ltrim('# ');
-                    $value = $line->after('=');
-
-                    $this->setEnv($key, text($key, default: $value), force: true);
-
-                    // uncomment
-                    Process::run("sed -i '/{$key}/s/^{$line->before('DB_')}//' .env");
-                }
-            });
-        }
-
-        Artisan::call('config:clear');
-
-        if (($db_default = config('database.default')) != 'mysql') {
-            info("DB_CONNECTION is currently set to $db_default.");
-            if (confirm("Would you like to change it to mysql?")) {
-                $this->setEnv('DB_CONNECTION', 'mysql', force: true);
-            }
-
-        }
-
         return collect([
             'image'       => 'mysql',
             'restart'     => 'always',
+            'healthcheck' => [
+                'test'     => ['CMD', 'mysqladmin', 'ping', '-h', 'localhost'],
+                'interval' => '15s',
+                'timeout'  => '10s',
+                'retries'  => 3,
+            ],
             'environment' => [
                 'MYSQL_ROOT_PASSWORD' => '${DB_PASSWORD}',
                 'MYSQL_DATABASE'      => '${DB_DATABASE}',
@@ -75,5 +52,17 @@ trait HasDatabaseServices
         }
 
         return [];
+    }
+
+    public function getDefault($key, $value)
+    {
+        return match("$key"){
+            'DB_CONNECTION' => 'mysql',
+            'DB_HOST' => 'mysql',
+            'DB_PORT' => '3306',
+            'DB_DATABASE' => $value ?: str(config('app.name'))->slug()->value(),
+            'DB_USERNAME' => 'admin',
+            'DB_PASSWORD' => '',
+        };
     }
 }

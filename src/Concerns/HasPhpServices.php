@@ -14,8 +14,14 @@ trait HasPhpServices
             'volumes'     => $this->getPhpVolumes($env),
             'build'       => [
                 'context'    => $env == 'production' ? './build' : $this->getLocalBuildPath(),
-                'target'     => $env == 'production' ? 'production' : 'app',
+                'target'     => $env == 'production' ? 'production' : 'php',
                 'dockerfile' => 'Dockerfile',
+            ],
+            'healthcheck' => [
+                'test'     => ['CMD', 'php', '-v'],
+                'interval' => '5s',
+                'timeout'  => '10s',
+                'retries'  => 5,
             ],
             'env_file'    => ['.env'],
             'working_dir' => '/var/www/html',

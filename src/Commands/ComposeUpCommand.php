@@ -3,10 +3,11 @@
 namespace Braceyourself\Compose\Commands;
 
 use Illuminate\Console\Command;
+use Laravel\Prompts\ConfirmPrompt;
+use Illuminate\Support\Facades\App;
 use Illuminate\Support\Facades\Process;
 use Braceyourself\Compose\Facades\Compose;
 use Braceyourself\Compose\Concerns\CreatesComposeServices;
-use function Laravel\Prompts\confirm;
 
 class ComposeUpCommand extends Command
 {
@@ -27,7 +28,7 @@ class ComposeUpCommand extends Command
         $this->getPhpVersion();
         $this->getPhpImageName();
         $this->ensureTraefikIsRunning();
-        if (!$this->getEnvAsString()->contains('COMPOSE_PROFILES=')) {
+        if (!$this->localEnv()->contains('COMPOSE_PROFILES=')) {
             $this->setEnv('COMPOSE_PROFILES', 'local');
         }
 
@@ -36,30 +37,30 @@ class ComposeUpCommand extends Command
         $timeout = ($timeout = $this->option('timeout')) !== null ? "--timeout $timeout" : '--timeout=0';
 
         if ($this->option('build')) {
-            $this->call('compose:build');
+            Compose::tty()->forever()->run('build')->throw();
         }
 
-        $run_migrations = $this->hasPendingMigrations() && confirm("There are pending migrations. Would you like to run them?");
+        Compose::tty()->run("up -d --no-build $removeOrphans $forceRecreate $timeout");
 
-        Process::tty()
-            ->forever()
-            ->run(Compose::buildCommand("build"))
-            ->throw();
-
-        Compose::tty()->run("up -d $removeOrphans $forceRecreate $timeout");
-
-        if ($run_migrations) {
-            Compose::tty()->runArtisanCommand("migrate");
+        if ($this->hasPendingMigrations() && $this->confirm("There are pending migrations. Would you like to run them?")) {
+            Compose::tty()->artisan("migrate");
         }
+
+        $domain = $this->localEnv('COMPOSE_DOMAIN');
+        $schema = app()->isProduction() ? 'https' : 'http';
+
+        $this->info(<<<EOF
+        
+        \tYour services are now running. You can view your application at:
+        \t\t{$schema}://{$domain}
+
+        EOF);
     }
 
     private function hasPendingMigrations()
     {
-        $output = Compose::runArtisanCommand("migrate:status")->output();
-
-        return str($output)->contains([
-            'Pending',
-            'Migration table not found'
-        ]);
+        return !str(
+            Compose::artisan("migrate:status --pending")->output()
+        )->trim("\n ")->is('*No pending migrations*');
     }
 }

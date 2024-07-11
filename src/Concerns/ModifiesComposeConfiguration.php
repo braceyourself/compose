@@ -67,7 +67,7 @@ trait ModifiesComposeConfiguration
                 $app_dir = str(base_path())->basename()->slug();
                 $hub_username = $this->getDockerHubUsername();
 
-                $image = "$hub_username/$app_dir";
+                $image = str("$hub_username/$app_dir")->trim('/');
 
                 return $this->setEnv('COMPOSE_PHP_IMAGE',
                     text("PHP Image Name:", default: $image, hint: "Please confirm the PHP image name")

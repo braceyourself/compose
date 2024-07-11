@@ -2,7 +2,10 @@
 
 namespace Braceyourself\Compose;
 
+use Illuminate\Process\Factory;
+use Illuminate\Process\ProcessResult;
 use Illuminate\Support\ServiceProvider;
+use Illuminate\Support\Facades\Process;
 use Braceyourself\Compose\Commands\ComposeUpCommand;
 use Braceyourself\Compose\Commands\ComposeSetupCommand;
 
@@ -14,19 +17,26 @@ class ComposeServiceProvider extends ServiceProvider
 
         $this->publishes([
             __DIR__ . '/../config/compose.php' => config_path('compose.php'),
-        ]);
+        ], 'compose-config');
     }
 
     public function register(): void
     {
-        $this->app->bind('compose', function () {
-            return new DockerComposeProcess();
+        $this->app->bind('braceyourself-compose', function () {
+            return new DockerComposeProcess(app(Factory::class));
         });
-        $this->app->bind('docker', function () {
+
+        $this->app->bind('braceyourself-docker', function () {
             return new DockerProcess();
         });
 
+        $this->app->bind('braceyourself-remote', function () {
+            return new RemoteProcess(app(Factory::class));
+        });
+
         $this->registerCommandsIn(__DIR__ . '/Commands');
+
+        $this->setUpMacros();
     }
 
     private function registerCommandsIn($dir)
@@ -36,5 +46,15 @@ class ComposeServiceProvider extends ServiceProvider
                 $this->commands('Braceyourself\Compose\Commands\\' . pathinfo($file, PATHINFO_FILENAME));
             }
         }
+    }
+
+    private function setUpMacros()
+    {
+        Process::macro('remote', function ($user, $host) {
+            $this->remote = true;
+            $this->user = $user;
+            $this->host = $host;
+            return $this;
+        });
     }
 }

@@ -2,86 +2,119 @@
 
 namespace Braceyourself\Compose;
 
+use Closure;
+use Illuminate\Process\Factory;
+use Illuminate\Process\PendingProcess;
 use Illuminate\Support\Facades\Process;
+use Illuminate\Support\Traits\Macroable;
+use Illuminate\Contracts\Process\ProcessResult;
+use Illuminate\Process\Exceptions\ProcessFailedException;
 use Braceyourself\Compose\Concerns\CreatesComposeServices;
+use Laravel\SerializableClosure\Support\ReflectionClosure;
+use Braceyourself\Compose\Exceptions\ComposeProcessFailedException;
+use function Laravel\Prompts\spin;
 
-class DockerComposeProcess
+class DockerComposeProcess extends PendingProcess
 {
     use CreatesComposeServices;
+    use Macroable;
 
-    private bool $tty = false;
     private bool $throw = false;
-    private array $env;
+    private array $env = [];
+    private string|bool $spin = false;
+    private $service;
 
-    public function __construct()
+    public function __construct(Factory $factory)
     {
-        $this->env = getenv();
+        parent::__construct($factory);
+        $env = getenv();
+
+        $env['USER_ID'] ??= exec('id -u');
+        $env['GROUP_ID'] ??= exec('id -g');
+        $env['COMPOSE_ROUTER'] ??= str(base_path())->basename()->slug()->value();
+
+        $this->env($env);
     }
 
     public function buildCommand($command): string
     {
-        if(file_exists(base_path('docker-compose.yml'))) {
+        if (file_exists(base_path('docker-compose.yml'))) {
             return "docker compose $command";
         }
 
-        $config = str($this->getComposeYaml())->replace('${', '\${');
+        $project_dir = base_path();
+        $compose_file = '/tmp/braceyourself-compose.yml';
 
-        return "echo '{$config}' | docker compose -f - $command";
-    }
+        file_put_contents($compose_file, $this->getComposeYaml());
 
-    public function buildServiceCommand($service, $command): string
-    {
-        return $this->buildCommand("exec -T $service $command");
+        return "docker compose -f {$compose_file} --project-directory {$project_dir} $command";
     }
 
     public function buildArtisanCommand($command): string
     {
-        return $this->buildServiceCommand('php', "php artisan $command");
+        return $this->buildServiceRunCommand('php', "./artisan $command");
     }
 
-    public function run($command)
+    public function buildServiceRunCommand($service, $command): string
     {
-        return Process::tty($this->tty)
-            ->env($this->env)
-            ->run($this->buildCommand($command))
-            ->throwIf($this->throw);
+        return "run --entrypoint bash --rm $service -c '$command'";
     }
 
-    public function runArtisanCommand($command)
+    public function artisan($command = null, ?callable $output = null): \Illuminate\Process\ProcessResult|ProcessResult
     {
-        return Process::tty($this->tty)
-            ->env($this->env)
-            ->run($this->buildArtisanCommand($command))
-            ->throwIf($this->throw);
+        $command ??= $this->command;
+
+        return $this->runCallable(fn() => $this->runOn('php', "./artisan $command", $output));
     }
 
-    public function runServiceCommand($service, $command)
+    public function runOn($service, $command, ?callable $output = null): \Illuminate\Process\ProcessResult|ProcessResult
     {
-        return Process::tty($this->tty)
-            ->env($this->env)
-            ->run($this->buildServiceCommand($service, $command))
-            ->throwIf($this->throw);
+        $command ??= $this->command;
+
+        return $this->runCallable(fn() => $this->run(
+            static::buildServiceRunCommand($service, $command),
+            $output
+        ));
     }
 
-
-    public function env(array $variables)
+    public function run(array|string|null $command = null, ?callable $output = null)
     {
-        $this->env = array_merge($this->env, $variables);
+        return parent::run(
+            static::buildCommand($command ?? $this->command),
+            $output
+        );
+    }
+
+    public function service($service_name): static
+    {
+        $this->service = $service_name;
 
         return $this;
     }
 
-    public function tty($tty = true)
+    public function spin(string|bool $spin = true)
     {
-        $this->tty = true;
+        $this->spin = $spin;
 
         return $this;
     }
 
-    public function throw($throw = true)
+    private function runCallable(Closure $callable)
     {
-        $this->throw = true;
+        if ($this->spin) {
+            return spin(
+                fn() => $callable()->throw($this->processResultExceptionHandler(...)),
+                is_string($this->spin)
+                    ? $this->spin
+                    : (new ReflectionClosure($callable))->getClosureUsedVariables()['command'] ?? ''
+            );
+        }
 
-        return $this;
+        return $callable()->throw($this->processResultExceptionHandler(...));
+    }
+
+    private function processResultExceptionHandler(ProcessResult $res, ProcessFailedException $exception)
+    {
+        throw new ComposeProcessFailedException($res);
     }
 }

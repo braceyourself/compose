@@ -26,33 +26,38 @@ trait HasNginxServices
                 'PROXY_PASS'      => 'php',
                 'PROXY_PASS_PORT' => '9000',
             ],
+            'env_file'       => ['.env'],
             'depends_on'     => ['php'],
-            'volumes'        => $this->getNginxVolumes($env),
-            'labels'         => $this->getNginxLabels($env),
             'networks'       => ['default', 'traefik'],
+            ...$this->getNginxVolumes($env),
+            ...$this->getNginxLabels($env),
         ])->merge($config)->toArray();
     }
 
     public function getNginxVolumes($env)
     {
-        return match ($env) {
-            'local' => [
-                './:/var/www/html',
-            ],
-            default => [
-                './storage:/var/www/html/storage',
-            ]
-        };
+        return [
+            'volumes' => match ($env) {
+                'local' => [
+                    './:/var/www/html',
+                ],
+                default => [
+                    './storage:/var/www/html/storage',
+                ]
+            }
+        ];
     }
 
     public function getNginxLabels($env)
     {
-        return match($env){
-            'local' => [],
-            default => [
-                "traefik.http.routers.{$this->getTraefikRouterName()}.tls"              => $env == 'production',
-                "traefik.http.routers.{$this->getTraefikRouterName()}.tls.certresolver" => 'resolver',
-            ]
-        };
+        return [
+            'labels' => match ($env) {
+                'local' => [],
+                default => [
+                    "traefik.http.routers.{$this->getTraefikRouterName()}.tls=". ($env == 'production' ? 'true' : 'false'),
+                    "traefik.http.routers.{$this->getTraefikRouterName()}.tls.certresolver=resolver",
+                ]
+            }
+        ];
     }
 }

@@ -7,22 +7,35 @@ use Illuminate\Support\Facades\Process;
 
 trait InteractsWithEnvFile
 {
-    private function getEnvAsString(): Stringable
+    private function localEnv($name = null): Stringable
     {
-        return str(file_get_contents('.env'));
+        $env = str(file_get_contents('.env'));
+
+        if ($name) {
+            return $env->explode("\n")
+                ->mapInto(Stringable::class)
+                ->map->explode('=')
+                ->mapWithKeys(fn($l) => [$l->first() => str($l->last())])
+                ->filter()
+                ->filter(fn($l, $k) => str($k)->startsWith($name))
+                ->whenEmpty(fn() => throw new \Exception("{$name} not found in .env"))
+                ->first();
+        }
+
+        return $env;
     }
 
     private function setEnv($key, $value, $force = false)
     {
-        if (!$force && $this->getEnvAsString()->contains("{$key}={$value}")) {
+        if (!$force && $this->localEnv()->contains("{$key}={$value}")) {
             return $value;
         }
 
-        if ($this->getEnvAsString()->contains("{$key}=")) {
+        if ($this->localEnv()->contains("{$key}=")) {
             Process::run("sed -i 's/{$key}=.*/$key={$value}/' .env");
         } else {
             // check last line of env
-            $last_line = $this->getEnvAsString()->explode("\n")->map(fn($l) => str($l))->last();
+            $last_line = $this->localEnv()->explode("\n")->map(fn($l) => str($l))->last();
 
             if ($last_line->isNotEmpty() && !$last_line->startsWith('COMPOSE_')) {
                 // add a new line to separate from previous entries

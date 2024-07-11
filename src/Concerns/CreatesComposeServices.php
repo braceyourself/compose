@@ -40,13 +40,13 @@ trait CreatesComposeServices
 
         return [$service_name => match ($service_name) {
             'php' => $this->phpServiceDefinition($config, $env),
-            'nginx' => $this->nginxServiceDefinition($config, $env),
             'npm' => $this->npmServiceDefinition($config, $env),
-            'mysql', 'database' => $this->databaseServiceDefinition($config, $env),
-            'scheduler' => $this->schedulerServiceDefinition($config, $env),
             'redis' => $this->redisServiceDefinition($config, $env),
-            'mailhog' => $this->mailhogServiceDefinition($config, $env),
+            'nginx' => $this->nginxServiceDefinition($config, $env),
             'horizon' => $this->horizonServiceDefinition($config, $env),
+            'scheduler' => $this->schedulerServiceDefinition($config, $env),
+            'database' => $this->databaseServiceDefinition($config, $env),
+            'mailhog' => $this->mailhogServiceDefinition($config, $env),
         }];
     }
 

@@ -27,7 +27,7 @@ trait InteractsWithDocker
 
     public function getDockerHubUsername()
     {
-        return $this->getOrSetConfig('compose.deploy.docker_hub_username');
+        return config('compose.deploy.docker_hub_username');
     }
 
     public function getDockerHubPassword()
