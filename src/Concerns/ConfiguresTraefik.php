@@ -31,7 +31,7 @@ trait ConfiguresTraefik
 
                 $this->info("Starting Traefik...");
                 $this->info(
-                    Process::run("docker compose {$compose_file} up -d")->throw()->output()
+                    Process::run("docker compose -f {$compose_file} up -d")->throw()->output()
                 );
 
             });
