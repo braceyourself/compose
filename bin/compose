@@ -1,0 +1,182 @@
+#!/usr/bin/env bash
+
+UNAMEOUT="$(uname -s)"
+
+# Verify operating system is supported...
+case "${UNAMEOUT}" in
+    Linux*)             MACHINE=linux;;
+    Darwin*)            MACHINE=mac;;
+    *)                  MACHINE="UNKNOWN"
+esac
+
+if [ "$MACHINE" == "UNKNOWN" ]; then
+    echo "Unsupported operating system [$(uname -s)]. Compose for Laravel supports macOS, Linux, and Windows (WSL2)." >&2
+
+    exit 1
+fi
+
+# Determine if stdout is a terminal...
+if test -t 1; then
+    # Determine if colors are supported...
+    ncolors=$(tput colors)
+
+    if test -n "$ncolors" && test "$ncolors" -ge 8; then
+        BOLD="$(tput bold)"
+        YELLOW="$(tput setaf 3)"
+        GREEN="$(tput setaf 2)"
+        NC="$(tput sgr0)"
+    fi
+fi
+
+# Function that prints the available commands...
+display_help(){
+    echo "Compose for Laravel"
+    echo
+    echo "${YELLOW}Usage:${NC}" >&2
+    echo "  compose COMMAND [options] [arguments]"
+    echo
+    echo "Unknown commands are passed to artisan"
+    echo
+    echo "${YELLOW}Commands:${NC}"
+    echo "  ${GREEN}compose restart${NC}   Restart the application"
+    echo "  ${GREEN}compose migrate${NC}   Run the application's database migrations"
+    echo
+    echo "${YELLOW}All other commands are passed to artisan${NC}"
+    exit 1
+}
+
+#publish the compose file using ./artisan compose:publish
+publish_files(){
+  docker run --rm -it \
+    --entrypoint bash \
+    -u "$(id -u):$(id -g)" \
+    -v /tmp:/tmp \
+    -v "$PWD:/var/www/html" \
+    -v "$HOME:$HOME" \
+    -w /var/www/html \
+    php:8.3 -c "./artisan -q compose:publish $*"
+        #link .env file
+  ln -sf "$PWD/.env" /tmp/compose/.env
+}
+
+dockerCompose(){
+  exe=""
+  composeFile="/tmp/compose/docker-compose.yml"
+  dcOptions="--file $composeFile --project-directory $PWD --project-name $(basename "$PWD")"
+
+  if command -v docker compose &> /dev/null
+  then
+      exe="docker compose"
+  else
+      exe="docker-compose"
+  fi
+
+  exe="$exe $dcOptions"
+
+  if [ "$1" == '--docker' ]; then
+    shift 1
+    $exe $dcOptions "$@"
+    return 0
+  fi
+
+  # check if docker-compose php service is running
+  if $exe $dcOptions ps --services | grep -q "php"; then
+    exe="$exe exec php"
+  else
+    exe="$exe run --rm --entrypoint=php php"
+  fi
+
+  echo "$exe $@"
+  $exe "$@"
+}
+
+setupTraefik(){
+  # ensure traefik network exists
+  if ! docker network ls | grep -q "traefik"; then
+    echo 'Creating traefik network...'
+    docker network create traefik
+  fi
+
+  # ensure traefik is running
+  if ! docker ps --filter "name=traefik" | grep -q "traefik"; then
+    echo "Starting traefik..."
+    dockerCompose  up -d
+  fi
+}
+
+spin(){
+  # first arg is the message
+  # remaining args are the command to run
+  message=$1
+  shift
+
+  $* 2>/dev/null &
+
+  pid=$! # Process Id of the previous running command
+
+  spin='-\|/'
+
+  i=0
+  while kill -0 $pid 2>/dev/null
+  do
+    i=$(( (i+1) %4 ))
+    printf "\r${spin:$i:1}$message"
+    sleep .1
+  done
+}
+
+publish_files --publish-path /tmp/compose
+
+
+# Proxy the "help" command...
+if [ $# -gt 0 ]; then
+    if [ "$1" == "help" ] || [ "$1" == "-h" ] || [ "$1" == "-help" ] || [ "$1" == "--help" ]; then
+        display_help
+    fi
+else
+    display_help
+fi
+
+# shellcheck source=/dev/null
+if [ -n "$APP_ENV" ] && [ -f ./.env."$APP_ENV" ]; then
+  source ./.env."$APP_ENV";
+elif [ -f ./.env ]; then
+  source ./.env;
+fi
+
+
+
+
+setupTraefik
+
+# Determine the command to run...
+case "$1" in
+    build)
+
+        tar -cf /tmp/compose/build/app.tar \
+            --ignore-failed-read \
+            --exclude-vcs \
+            --exclude-from='/tmp/build/.dockerignore' \
+            -C "$PWD" .
+
+        #extract to /tmp/compose
+        tar -xf /tmp/compose/build/app.tar -C /tmp/compose
+
+        # build the application
+        dockerCompose build
+        ;;
+
+    deploy)
+        dockerCompose --docker run --rm -it --entrypoint=php php /var/www/html/artisan compose:deploy
+        ;;
+
+    up|down|run|exec|config|ps|logs)
+
+        dockerCompose --docker "$@"
+        ;;
+
+    *)
+
+        dockerCompose /var/www/html/artisan "$@"
+        ;;
+esac

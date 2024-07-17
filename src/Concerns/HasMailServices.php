@@ -12,7 +12,7 @@ trait HasMailServices
             'restart'        => 'always',
             'networks'       => ['default', 'traefik'],
             'profiles'       => ['local'],
-            'labels'         => ["traefik.http.services.mailhog-{$this->getTraefikRouterName()}.loadbalancer.server.port=8025"],
+            'labels'         => ['traefik.http.services.mailhog-${COMPOSE_ROUTER}.loadbalancer.server.port=8025'],
         ])->merge($config)->toArray();
     }
 }

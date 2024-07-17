@@ -11,21 +11,22 @@ trait HasDatabaseServices
     private function databaseServiceDefinition($config = []): array
     {
         return collect([
-            'image'       => 'mysql',
-            'restart'     => 'always',
-            'healthcheck' => [
+            'image'          => 'mysql',
+            'restart'        => 'always',
+            'container_name' => str(config('app.name'))->slug() . '-mysql',
+            'healthcheck'    => [
                 'test'     => ['CMD', 'mysqladmin', 'ping', '-h', 'localhost'],
                 'interval' => '15s',
                 'timeout'  => '10s',
                 'retries'  => 3,
             ],
-            'environment' => [
+            'environment'    => [
                 'MYSQL_ROOT_PASSWORD' => '${DB_PASSWORD}',
                 'MYSQL_DATABASE'      => '${DB_DATABASE}',
                 'MYSQL_USER'          => '${DB_USERNAME}',
                 'MYSQL_PASSWORD'      => '${DB_PASSWORD}',
             ],
-            'volumes'     => [
+            'volumes'        => [
                 './database/.data:/var/lib/mysql',
             ],
             ...$this->getPortMappings()
@@ -56,7 +57,7 @@ trait HasDatabaseServices
 
     public function getDefault($key, $value)
     {
-        return match("$key"){
+        return match ("$key") {
             'DB_CONNECTION' => 'mysql',
             'DB_HOST' => 'mysql',
             'DB_PORT' => '3306',

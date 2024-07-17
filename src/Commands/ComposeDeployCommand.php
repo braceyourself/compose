@@ -19,7 +19,7 @@ class ComposeDeployCommand extends Command
 {
     use CreatesComposeServices;
 
-    protected $signature = 'compose:deploy {--down}';
+    protected $signature = 'compose:deploy {--down} {--logs} {--host=} {--path=} {--user=}';
     protected $description = 'Deploy the services';
 
     private string $build_path = __DIR__ . '/../../build';
@@ -30,7 +30,6 @@ class ComposeDeployCommand extends Command
     public function handle()
     {
         $start = now();
-
         $this->loadServerCredentials();
 
         try {
@@ -95,7 +94,10 @@ class ComposeDeployCommand extends Command
         spin(function () {
             $vite_args = str(collect($this->getRemoteEnv()->explode("\n"))
                 ->filter(fn($line) => str($line)->startsWith('VITE_'))
-                ->map(fn($value) => "--build-arg '{$value}'")->join(' '))->trim(' ');
+                ->map(function ($value) {
+                    $value = str($value)->replace(' ', '\ ');
+                    return "--build-arg '{$value}'";
+                })->join(' '))->trim(' ');
 
             $this->runRemoteComposeCommand("build {$vite_args}");
         }, 'Building images...');
@@ -103,25 +105,22 @@ class ComposeDeployCommand extends Command
         spin($this->setUpStorage(...), 'Setting up storage...');
 
         spin(function () {
-            $this->runRemoteComposeCommand("up -d -t0 --remove-orphans");
-            $this->ensureAppKeyIsSet();
+             $running_services = str(Remote::run('docker-compose config --services')->output())->explode("\n")->filter(fn($s) => $s !== 'php')->filter()->join(' ');
+             Remote::run("docker-compose up -d {$running_services}")->throw();
 
             // scale up php
-            Remote::run('docker-compose up -d --no-deps --scale php=2 --no-build --no-recreate php')->throw();
-
-            do {
-                sleep(2);
-            } while ($this->getRemoteContainers('php')->last()->Health != 'healthy');
-
-            // reload nginx
-            Remote::run("docker-compose exec nginx /usr/sbin/nginx -s reload")->throw();
+            $this->scaleService('php', 2);
 
             // stop and remove old container
             $old_id = $this->getRemoteContainers('php')->first()->ID;
-            Remote::run("docker stop {$old_id} && docker rm {$old_id}")->throw();
+            $this->runRemoteScript(<<<BASH
+            docker stop {$old_id} 
+            docker rm {$old_id}
+            docker-compose up -d --no-deps --scale php=1 --no-build --no-recreate php
+            docker-compose exec nginx /usr/sbin/nginx -s reload
+            BASH)->throw();
 
-            // reload nginx
-            Remote::run("docker-compose exec nginx /usr/sbin/nginx -s reload")->throw();
+
         }, 'Starting services...');
 
         spin(function () {
@@ -138,11 +137,15 @@ class ComposeDeployCommand extends Command
         }, 'Waiting for database...');
 
         spin(function () {
-            $this->runArtisanCommand("artisan migrate --force");
+            $this->runArtisanCommand("migrate --force");
         }, 'Running migrations...');
 
         spin(function () {
-            $this->runArtisanCommand("artisan optimize");
+            $this->runArtisanCommand("key:generate");
+        }, 'Generating app key...');
+
+        spin(function () {
+            $this->runArtisanCommand("optimize");
         }, 'Optimizing...');
 
         spin($this->cleanUpDeploy(...), 'Cleaning up...');
@@ -177,6 +180,8 @@ class ComposeDeployCommand extends Command
 
     private function createRemoteEnv(): void
     {
+        $this->info("Creating .env file on remote server");
+
         $res = $this->buildEnvFromExampleFile();
         $temp_name = tempnam(sys_get_temp_dir(), 'env-') . '.env';
 
@@ -203,7 +208,7 @@ class ComposeDeployCommand extends Command
             ->filter(fn($line) => !$remote_env->contains(str($line)->trim("# ")->before('=')));
     }
 
-    private function shouldUpdateRemoteEnvFile()
+    private function shouldUpdateRemoteEnvFile(): bool
     {
         if ($this->envExampleDiffFromRemote()->isNotEmpty()) {
             $this->warn('There are differences between the .env.example and the remote .env file.');
@@ -215,8 +220,10 @@ class ComposeDeployCommand extends Command
     }
 
 
-    private function updateRemoteEnv()
+    private function updateRemoteEnv(): void
     {
+        $this->info("Updating .env file on remote server");
+
         $diff = $this->envExampleDiffFromRemote();
 
         $this->info("Updating .env file on remote server");
@@ -272,14 +279,14 @@ class ComposeDeployCommand extends Command
         );
     }
 
-    private function runRemoteScript(string $script)
+    private function runRemoteScript(string $script, $tty = false)
     {
         return Remote::run($script);
     }
 
     private function copyToServer(string $local_path, mixed $path): void
     {
-        $path = str($path)->trim('/');
+        $path = str($path)->rtrim('/');
 
         $options = collect([])
             ->when(is_dir($local_path), fn($c) => $c->push('-r'))
@@ -300,7 +307,7 @@ class ComposeDeployCommand extends Command
     {
         // set the app key if not set
         if ($this->getRemoteEnv('APP_KEY')->isEmpty()) {
-            $this->runArtisanCommand("artisan key:generate");
+            $this->runArtisanCommand("key:generate");
         }
     }
 
@@ -313,14 +320,14 @@ class ComposeDeployCommand extends Command
             );
         };
 
-        $this->host = $this->getOrSetConfig('compose.deploy.host', fn() => $prompt('What is the hostname of the deployment server?'));
-        $this->user = $this->getOrSetConfig('compose.deploy.user', fn() => $prompt("Enter the user name for '{$this->host}'", exec('whoami')));
-        $this->path = $this->getOrSetConfig('compose.deploy.path', fn() => $prompt("Enter the path on {$this->host} this app should"));
+        $this->host = $this->option('host') ?: $this->getOrSetConfig('compose.deploy.host', fn() => $prompt('What is the hostname of the deployment server?'));
+        $this->user = $this->option('user') ?: $this->getOrSetConfig('compose.deploy.user', fn() => $prompt("Enter the user name for '{$this->host}'", exec('whoami')));
+        $this->path = $this->option('path') ?: $this->getOrSetConfig('compose.deploy.path', fn() => $prompt("Enter the path on {$this->host} this app should"));
     }
 
     private function runArtisanCommand(string $command): void
     {
-        $this->runRemoteScript("docker-compose exec -T php php {$command}")->throw();
+        $this->runRemoteScript("docker-compose run --entrypoint=bash --rm php -c './artisan {$command}'", tty: true)->throw();
     }
 
     private function extractAppTarball(): void
@@ -343,7 +350,7 @@ class ComposeDeployCommand extends Command
             ->replaceMatches('/APP_DEBUG=.*/', 'APP_DEBUG=false')
             ->replaceMatches('/APP_URL=.*/', 'APP_URL=' . $url = text('APP_URL', default: "https://"))
             ->replaceMatches('/DB_CONNECTION=.*/', 'DB_CONNECTION=mysql')
-            ->replaceMatches('/(#.)?DB_HOST=.*/', 'DB_HOST=mysql')
+            ->replaceMatches('/(#.)?DB_HOST=.*/', 'DB_HOST=database')
             ->replaceMatches('/(#.)?DB_PORT=.*/', 'DB_PORT=3306')
             ->replaceMatches('/(#.)?DB_DATABASE=.*/', 'DB_DATABASE=' . pathinfo(base_path(), PATHINFO_FILENAME))
             ->replaceMatches('/(#.)?DB_USERNAME=.*/', 'DB_USERNAME=admin')
@@ -355,6 +362,7 @@ class ComposeDeployCommand extends Command
             ->push("COMPOSE_PHP_IMAGE={$this->getPhpImageName()}")
             ->push("COMPOSE_DOMAIN=" . $domain = text("Confirm the domain name", default: str($url)->after('://')->before('/')->value(), hint: "This is the domain name where your app is hosted"))
             ->push("COMPOSE_ROUTER=" . str($domain)->slug())
+            ->push("COMPOSE_NETWORK=traefik_default")
             ->push("USER_ID={$remote_ids->first()}")
             ->push("GROUP_ID={$remote_ids->last()}")
             ->join("\n");
@@ -371,5 +379,14 @@ class ComposeDeployCommand extends Command
             ->filter()
             ->map(fn($l) => json_decode($l))
             ->sortBy('CreatedAt');
+    }
+
+    private function scaleService(string $service, int $replicas): void
+    {
+        Remote::run("docker-compose up -d --no-deps --scale {$service}={$replicas} --no-build --no-recreate {$service}")->throw();
+        do {
+            sleep(2);
+        } while ($this->getRemoteContainers($service)->every('Health', 'healthy'));
+        Remote::run("docker-compose exec nginx /usr/sbin/nginx -s reload")->throw();
     }
 }

@@ -159,4 +159,15 @@ class RemoteProcess extends PendingProcess
 
         return $this;
     }
+
+    public function sshTty($tty = true)
+    {
+        if ($tty) {
+            $this->commandOptions[] = '-t';
+        }else{
+            $this->commandOptions = collect($this->commandOptions)->filter(fn($option) => $option !== '-t')->toArray();
+        }
+
+        return $this;
+    }
 }

@@ -25,6 +25,9 @@
         "illuminate/console": "^10|^11",
         "laravel/prompts": "^0.1"
     },
+    "bin": [
+        "bin/compose"
+    ],
     "extra": {
         "laravel": {
             "providers": [

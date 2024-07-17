@@ -69,7 +69,7 @@ trait CreatesComposeServices
             'networks' => [
                 'traefik' => [
                     'external' => true,
-                    'name'     => $this->getTraefikNetworkName()
+                    'name'     => '${COMPOSE_NETWORK}'
                 ]
 
             ]

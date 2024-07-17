@@ -60,6 +60,11 @@ class DockerComposeProcess extends PendingProcess
         return "run --entrypoint bash --rm $service -c '$command'";
     }
 
+    public function buildServiceExecCommand($service, $command): string
+    {
+        return "exec $service $command";
+    }
+
     public function artisan($command = null, ?callable $output = null): \Illuminate\Process\ProcessResult|ProcessResult
     {
         $command ??= $this->command;
@@ -73,6 +78,16 @@ class DockerComposeProcess extends PendingProcess
 
         return $this->runCallable(fn() => $this->run(
             static::buildServiceRunCommand($service, $command),
+            $output
+        ));
+    }
+
+    public function execOn($service, $command, ?callable $output = null): \Illuminate\Process\ProcessResult|ProcessResult
+    {
+        $command ??= $this->command;
+
+        return $this->runCallable(fn() => $this->run(
+            static::buildServiceExecCommand($service, $command),
             $output
         ));
     }

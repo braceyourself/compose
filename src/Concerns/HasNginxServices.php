@@ -7,7 +7,7 @@ trait HasNginxServices
     public function getNginxImageName()
     {
         $hub_username = $this->getDockerHubUsername();
-        $app_name = pathinfo(base_path(), PATHINFO_FILENAME);
+        $app_name = str(config('app.name'))->slug();
 
         return str("$hub_username/$app_name-nginx")->trim('/')->value();
     }
@@ -54,8 +54,8 @@ trait HasNginxServices
             'labels' => match ($env) {
                 'local' => [],
                 default => [
-                    "traefik.http.routers.{$this->getTraefikRouterName()}.tls=". ($env == 'production' ? 'true' : 'false'),
-                    "traefik.http.routers.{$this->getTraefikRouterName()}.tls.certresolver=resolver",
+                    'traefik.http.routers.${COMPOSE_ROUTER}.tls='. ($env == 'production' ? 'true' : 'false'),
+                    'traefik.http.routers.${COMPOSE_ROUTER}.tls.certresolver=resolver',
                 ]
             }
         ];

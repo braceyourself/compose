@@ -9,24 +9,25 @@ trait HasPhpServices
     private function phpServiceDefinition(array $config = [], $env = 'local'): array
     {
         return collect([
-            'image'       => '${COMPOSE_PHP_IMAGE}',
-            'user'        => '${USER_ID}:${GROUP_ID}',
-            'volumes'     => $this->getPhpVolumes($env),
-            'build'       => [
+            'image'          => '${COMPOSE_PHP_IMAGE}',
+            //'container_name' => str(config('app.name'))->slug() . '-php',
+            'user'           => '${USER_ID}:${GROUP_ID}',
+            'volumes'        => $this->getPhpVolumes($env),
+            'build'          => [
                 'context'    => $env == 'production' ? './build' : $this->getLocalBuildPath(),
                 'target'     => $env == 'production' ? 'production' : 'php',
                 'dockerfile' => 'Dockerfile',
             ],
-            'healthcheck' => [
+            'healthcheck'    => [
                 'test'     => ['CMD', 'php', '-v'],
                 'interval' => '5s',
                 'timeout'  => '10s',
                 'retries'  => 5,
             ],
-            'env_file'    => ['.env'],
-            'working_dir' => '/var/www/html',
-            'restart'     => 'always',
-            'environment' => [
+            'env_file'       => ['.env'],
+            'working_dir'    => '/var/www/html',
+            'restart'        => 'always',
+            'environment'    => [
                 'SERVICE' => 'php'
             ]
         ])->merge($config)
@@ -37,12 +38,13 @@ trait HasPhpServices
     private function schedulerServiceDefinition($config = [], $env = 'local'): array
     {
         return collect([
-            'image'       => '${COMPOSE_PHP_IMAGE}',
-            'user'        => '${USER_ID}:${GROUP_ID}',
-            'restart'     => 'always',
-            'volumes'     => $this->getPhpVolumes($env),
-            'depends_on'  => ['php'],
-            'environment' => [
+            'image'          => '${COMPOSE_PHP_IMAGE}',
+            'container_name' => str(config('app.name'))->slug() . '-scheduler',
+            'user'           => '${USER_ID}:${GROUP_ID}',
+            'restart'        => 'always',
+            'volumes'        => $this->getPhpVolumes($env),
+            'depends_on'     => ['php'],
+            'environment'    => [
                 'SERVICE' => 'scheduler'
             ]
         ])->merge($config)->toArray();
@@ -52,13 +54,14 @@ trait HasPhpServices
     private function horizonServiceDefinition($config = [], $env = 'local'): array
     {
         return collect([
-            'image'       => '${COMPOSE_PHP_IMAGE}',
-            'user'        => '${USER_ID}:${GROUP_ID}',
-            'restart'     => 'always',
-            'volumes'     => $this->getPhpVolumes($env),
-            'depends_on'  => ['php'],
-            'command'     => 'php artisan horizon',
-            'environment' => [
+            'image'          => '${COMPOSE_PHP_IMAGE}',
+            'container_name' => str(config('app.name'))->slug() . '-horizon',
+            'user'           => '${USER_ID}:${GROUP_ID}',
+            'restart'        => 'always',
+            'volumes'        => $this->getPhpVolumes($env),
+            'depends_on'     => ['php'],
+            'command'        => 'php artisan horizon',
+            'environment'    => [
                 'SERVICE' => 'horizon'
             ]
         ])->merge($config)->toArray();
@@ -66,7 +69,7 @@ trait HasPhpServices
 
     private function getPhpVolumes($env = 'local')
     {
-        return match($env){
+        return match ($env) {
             'local' => $this->getLocalPhpVolumes(),
             default => [
                 '$HOME/.config/psysh:/var/www/.config/psysh',
@@ -78,7 +81,11 @@ trait HasPhpServices
 
     private function getLocalPhpVolumes(): array
     {
-        $volumes = ['./:/var/www/html'];
+        $volumes = [
+            './:/var/www/html',
+            '~/.ssh:/var/www/.ssh',
+            '$HOME:$HOME'
+        ];
 
         // check if any local paths are defined in the repository section of composer.json
         if (file_exists($composer_json = base_path('composer.json'))) {

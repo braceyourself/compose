@@ -39,14 +39,14 @@ trait HasNodeServices
 
         $image = data_get($config, 'image', 'node');
 
-        // ensure node_modules is installed
-        if (!file_exists(base_path('node_modules'))) {
-            spin(function () use ($image) {
-                Process::tty()
-                    ->run("docker run --rm -u {$this->getUserId()} -v $(pwd):/var/www/html -w /var/www/html {$image} npm install")
-                    ->throw();
-            }, "Installing node_modules...");
-        }
+//        // ensure node_modules is installed
+//        if (!file_exists(base_path('node_modules'))) {
+//            spin(function () use ($image) {
+//                Process::tty()
+//                    ->run("docker run --rm -u {$this->getUserId()} -v $(pwd):/var/www/html -w /var/www/html {$image} npm install")
+//                    ->throw();
+//            }, "Installing node_modules...");
+//        }
 
         return collect([
             'image'          => $image,
@@ -55,7 +55,7 @@ trait HasNodeServices
             'working_dir'    => '/var/www/html',
             'command'        => 'npm run dev -- --host --port=80',
             'labels'         => [
-                "traefik.http.services.{$this->getTraefikRouterName()}.loadbalancer.server.port" => 80,
+                'traefik.http.services.${COMPOSE_ROUTER}.loadbalancer.server.port' => 80,
             ],
             'env_file'       => ['.env'],
             'volumes'        => ['./:/var/www/html'],

@@ -8,6 +8,7 @@ use Illuminate\Support\Facades\App;
 use Illuminate\Support\Facades\Process;
 use Braceyourself\Compose\Facades\Compose;
 use Braceyourself\Compose\Concerns\CreatesComposeServices;
+use function Laravel\Prompts\spin;
 
 class ComposeUpCommand extends Command
 {
@@ -27,7 +28,6 @@ class ComposeUpCommand extends Command
     {
         $this->getPhpVersion();
         $this->getPhpImageName();
-        $this->ensureTraefikIsRunning();
         if (!$this->localEnv()->contains('COMPOSE_PROFILES=')) {
             $this->setEnv('COMPOSE_PROFILES', 'local');
         }
@@ -40,7 +40,10 @@ class ComposeUpCommand extends Command
             Compose::tty()->forever()->run('build')->throw();
         }
 
-        Compose::tty()->run("up -d --no-build $removeOrphans $forceRecreate $timeout");
+        spin(fn() =>
+            Compose::run("up -d --no-build $removeOrphans $forceRecreate $timeout"),
+            "Starting services..."
+        );
 
         if ($this->hasPendingMigrations() && $this->confirm("There are pending migrations. Would you like to run them?")) {
             Compose::tty()->artisan("migrate");
@@ -60,7 +63,7 @@ class ComposeUpCommand extends Command
     private function hasPendingMigrations()
     {
         return !str(
-            Compose::artisan("migrate:status --pending")->output()
+            $this->call('migrate:status',['--pending' => true])
         )->trim("\n ")->is('*No pending migrations*');
     }
 }
