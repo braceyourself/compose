@@ -31,7 +31,7 @@ trait BuildsDockerfile
             && groupmod -og {$this->getGroupId()} www-data \
             && usermod -u {$this->getUserId()} www-data
             
-        COPY php_entrypoint.sh /usr/local/bin/entrypoint.sh
+        COPY build/php_entrypoint.sh /usr/local/bin/entrypoint.sh
         RUN chmod +x /usr/local/bin/entrypoint.sh \
             && chown -R www-data:www-data /var/www/html \
             && chown -R www-data:www-data /var/www
@@ -81,7 +81,7 @@ trait BuildsDockerfile
         
         ### nginx ###
         FROM nginx AS nginx
-        COPY nginx.conf /etc/nginx/templates/default.conf.template
+        COPY build/nginx.conf /etc/nginx/templates/default.conf.template
         COPY --from=npm /var/www/html/public /var/www/html/public
         
         

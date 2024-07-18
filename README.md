@@ -45,19 +45,25 @@ compose COMMAND [options] [arguments]
 
 ## Setup Instructions
 
-### Publish the Compose File
+### Publish the Compose File [optional]
 
+If you would like to work with docker compose directly, you can publish the Compose file to your project. This will allow you to make changes to the Compose file and run `docker-compose` commands directly.
 To publish the Docker Compose file to your project, run:
 
 ```bash
-./vendor/bin/compose publish
+./vendor/bin/compose publish \
+    [--publish-path=] 
+    
 ```
 
-This command will publish the Docker Compose file to `/tmp/compose`.
+This command will publish the Docker Compose file to your project's `base_path()`
+or the value of the `--publish-path` option.
 
 ### Traefik Setup
 
-Ensure Traefik is set up for handling requests:
+
+If Traefik is not set up, we will ask if you would like to install it.
+
 
 1. Ensure the Traefik network exists:
 
@@ -71,7 +77,7 @@ Ensure Traefik is set up for handling requests:
     docker-compose up -d traefik
     ```
 
-## Running the Application
+## Running the Application locally
 
 To start the application, use:
 
@@ -85,7 +91,7 @@ To stop the application, use:
 ./vendor/bin/compose down
 ```
 
-## Deployment
+## Deploy the application to a server
 
 To deploy the application, use:
 
@@ -110,15 +116,15 @@ Ensure you have a `.env` file in your project root. The script will source this 
 
 If you encounter issues, ensure your system meets the requirements and that Docker and Docker Compose are properly installed and configured.
 
+Currently, the script will attempt to install docker if it is not already installed.
+
+Please report any issues.
+
 ## License
 
 Compose for Laravel is open-source software licensed under the [MIT license](LICENSE).
 
-```
 
 ## Support
 
 For support and additional documentation, please visit [your-website](https://your-website.com).
-```
-
-This README provides a comprehensive guide to using Compose for Laravel, covering installation, usage, setup, and deployment. Adjust the placeholders (`your-vendor`, `your-website`) to match your actual package details.

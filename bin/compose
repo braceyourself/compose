@@ -1,4 +1,7 @@
 #!/usr/bin/env bash
+#############################################
+# Compose for Laravel
+#############################################
 
 UNAMEOUT="$(uname -s)"
 
@@ -28,6 +31,31 @@ if test -t 1; then
     fi
 fi
 
+#############################################
+# Argument Parsing
+#############################################
+
+# Proxy the "help" command...
+if [ $# -gt 0 ]; then
+    if [ "$1" == "help" ] || [ "$1" == "-h" ] || [ "$1" == "-help" ] || [ "$1" == "--help" ]; then
+        display_help
+    fi
+else
+    display_help
+fi
+
+# shellcheck source=/dev/null
+if [ -n "$APP_ENV" ] && [ -f ./.env."$APP_ENV" ]; then
+  source ./.env."$APP_ENV";
+elif [ -f ./.env ]; then
+  source ./.env;
+fi
+
+#############################################
+# Functions
+#############################################
+
+
 # Function that prints the available commands...
 display_help(){
     echo "Compose for Laravel"
@@ -46,23 +74,19 @@ display_help(){
 }
 
 #publish the compose file using ./artisan compose:publish
-publish_files(){
-  docker run --rm -it \
+publishFiles(){
+
+  dockerCompose --docker run --rm -it \
     --entrypoint bash \
     -u "$(id -u):$(id -g)" \
-    -v /tmp:/tmp \
-    -v "$PWD:/var/www/html" \
-    -v "$HOME:$HOME" \
-    -w /var/www/html \
-    php:8.3 -c "./artisan -q compose:publish $*"
+    php -c "./artisan compose:publish --files docker-compose.yml --files build"
         #link .env file
   ln -sf "$PWD/.env" /tmp/compose/.env
 }
 
 dockerCompose(){
   exe=""
-  composeFile="/tmp/compose/docker-compose.yml"
-  dcOptions="--file $composeFile --project-directory $PWD --project-name $(basename "$PWD")"
+  dcOptions="--project-name $(basename "$PWD")"
 
   if command -v docker compose &> /dev/null
   then
@@ -75,7 +99,8 @@ dockerCompose(){
 
   if [ "$1" == '--docker' ]; then
     shift 1
-    $exe $dcOptions "$@"
+    echo "$exe $*"
+    $exe "$@"
     return 0
   fi
 
@@ -125,58 +150,34 @@ spin(){
   done
 }
 
-publish_files --publish-path /tmp/compose
 
+#############################################
+# Main
+#############################################
 
-# Proxy the "help" command...
-if [ $# -gt 0 ]; then
-    if [ "$1" == "help" ] || [ "$1" == "-h" ] || [ "$1" == "-help" ] || [ "$1" == "--help" ]; then
-        display_help
-    fi
-else
-    display_help
-fi
-
-# shellcheck source=/dev/null
-if [ -n "$APP_ENV" ] && [ -f ./.env."$APP_ENV" ]; then
-  source ./.env."$APP_ENV";
-elif [ -f ./.env ]; then
-  source ./.env;
-fi
-
-
-
-
+publishFiles
 setupTraefik
 
 # Determine the command to run...
 case "$1" in
     build)
-
-        tar -cf /tmp/compose/build/app.tar \
-            --ignore-failed-read \
-            --exclude-vcs \
-            --exclude-from='/tmp/build/.dockerignore' \
-            -C "$PWD" .
-
-        #extract to /tmp/compose
-        tar -xf /tmp/compose/build/app.tar -C /tmp/compose
-
         # build the application
-        dockerCompose build
+        dockerCompose --docker build \
+          --build-arg HOME="$HOME" \
+          --build-arg USER_ID="$(id -u)" \
+          --build-arg GROUP_ID="$(id -g)"
         ;;
 
     deploy)
         dockerCompose --docker run --rm -it --entrypoint=php php /var/www/html/artisan compose:deploy
         ;;
-
+    publish)
+        dockerCompose /var/www/html/artisan compose:"$*"
+        ;;
     up|down|run|exec|config|ps|logs)
-
         dockerCompose --docker "$@"
         ;;
-
     *)
-
         dockerCompose /var/www/html/artisan "$@"
         ;;
 esac
