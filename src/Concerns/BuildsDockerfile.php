@@ -83,7 +83,10 @@ trait BuildsDockerfile
         FROM nginx AS nginx
         COPY build/nginx.conf /etc/nginx/templates/default.conf.template
         COPY --from=npm /var/www/html/public /var/www/html/public
-        RUN ln -sv /var/www/html/storage/app/public /var/www/html/public/storage
+        
+        # create symlink for public/storage if not present
+        RUN if [ ! -L /var/www/html/public/storage ]; then ln -s /var/www/html/storage/app/public /var/www/html/public/storage; fi
+        
         
         
         DOCKERFILE;
