@@ -86,7 +86,7 @@ publishFiles(){
 
 dockerCompose(){
   exe=""
-  dcOptions=""
+  options=""
 
   if command -v docker compose &> /dev/null
   then
@@ -95,7 +95,7 @@ dockerCompose(){
       exe="docker-compose"
   fi
 
-  exe="$exe $dcOptions"
+  exe="$exe $options"
 
   if [ "$1" == '--docker' ]; then
     shift 1
@@ -105,7 +105,7 @@ dockerCompose(){
   fi
 
   # check if docker-compose php service is running
-  if $exe $dcOptions ps --services | grep -q "php"; then
+  if $exe ps --services | grep -q "php"; then
     exe="$exe exec php"
   else
     exe="$exe run --rm --entrypoint=php php"
