@@ -37,19 +37,8 @@ trait HasNodeServices
             }
         }
 
-        $image = data_get($config, 'image', 'node');
-
-//        // ensure node_modules is installed
-//        if (!file_exists(base_path('node_modules'))) {
-//            spin(function () use ($image) {
-//                Process::tty()
-//                    ->run("docker run --rm -u {$this->getUserId()} -v $(pwd):/var/www/html -w /var/www/html {$image} npm install")
-//                    ->throw();
-//            }, "Installing node_modules...");
-//        }
-
         return collect([
-            'image'          => $image,
+            'image'          => data_get($config, 'image', 'node'),
             'container_name' => 'hmr.${COMPOSE_DOMAIN}',
             'user'           => '${USER_ID}:${GROUP_ID}',
             'working_dir'    => '/var/www/html',
