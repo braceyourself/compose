@@ -83,6 +83,7 @@ trait HasPhpServices
         $volumes = [
             './:/var/www/html',
             '~/.ssh:/var/www/.ssh',
+            '$HOME:$HOME',
         ];
 
         // check if any local paths are defined in the repository section of composer.json
