@@ -23,7 +23,7 @@ trait HasNginxServices
             'container_name' => '${COMPOSE_DOMAIN}',
             'build'          => [
                 'context'    => $env == 'production' ? './build' : '.',
-                'dockerfile' => './build/Dockerfile',
+                'dockerfile' => $env == 'production' ? './Dockerfile' : './build/Dockerfile',
                 'target'     => 'nginx'
             ],
             'restart'        => 'always',
@@ -32,7 +32,6 @@ trait HasNginxServices
                 'PROXY_PASS_PORT' => '9000',
             ],
             'env_file'       => ['.env'],
-            'depends_on'     => ['php'],
             'networks'       => ['default', 'traefik'],
             ...$this->getNginxVolumes($env),
             ...$this->getNginxLabels($env),
