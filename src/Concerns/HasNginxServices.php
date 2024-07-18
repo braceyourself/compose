@@ -18,8 +18,9 @@ trait HasNginxServices
             'image'          => $this->getNginxImageName(),
             'container_name' => '${COMPOSE_DOMAIN}',
             'build'          => [
+                'context'    => $env == 'production' ? './build' : '.',
                 'dockerfile' => './build/Dockerfile',
-                'target'  => 'nginx'
+                'target'     => 'nginx'
             ],
             'restart'        => 'always',
             'environment'    => [
@@ -54,7 +55,7 @@ trait HasNginxServices
             'labels' => match ($env) {
                 'local' => [],
                 default => [
-                    'traefik.http.routers.${COMPOSE_ROUTER}.tls='. ($env == 'production' ? 'true' : 'false'),
+                    'traefik.http.routers.${COMPOSE_ROUTER}.tls=' . ($env == 'production' ? 'true' : 'false'),
                     'traefik.http.routers.${COMPOSE_ROUTER}.tls.certresolver=resolver',
                 ]
             }
