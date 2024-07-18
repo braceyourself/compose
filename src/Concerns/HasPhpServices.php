@@ -14,6 +14,7 @@ trait HasPhpServices
             'user'           => '${USER_ID}:${GROUP_ID}',
             'volumes'        => $this->getPhpVolumes($env),
             'build'          => [
+                'context'    => $env == 'production' ? './build' : '.',
                 'target'     => $env == 'production' ? 'production' : 'php',
                 'dockerfile' => './build/Dockerfile',
             ],
