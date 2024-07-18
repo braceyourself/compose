@@ -188,6 +188,7 @@ case "$1" in
         dockerCompose /var/www/html/artisan compose:"$*"
         ;;
     up|down|run|exec|config|ps|logs)
+        # pass the command to docker compose
         dockerCompose --docker "$@"
         ;;
     *)

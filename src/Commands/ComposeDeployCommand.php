@@ -105,15 +105,21 @@ class ComposeDeployCommand extends Command
         spin($this->setUpStorage(...), 'Setting up storage...');
 
         spin(function () {
-             $running_services = str(Remote::run('docker-compose config --services')->output())->explode("\n")->filter(fn($s) => $s !== 'php')->filter()->join(' ');
+             $running_services = str(Remote::run('docker-compose config --services')->output())
+                 ->explode("\n")
+                 ->filter(fn($s) => $s !== 'php')
+                 ->filter()
+                 ->join(' ');
+
+             // restart everything except php
              Remote::run("docker-compose up -d {$running_services}")->throw();
 
-            // scale up php
-            $this->scaleService('php', 2);
-
-            // stop and remove old container
+            // get the current php container id
             $old_id = $this->getRemoteContainers('php')->first()->ID;
+
             $this->runRemoteScript(<<<BASH
+            docker-compose up -d --no-deps --scale php=2 --no-build --no-recreate php
+            docker-compose exec nginx /usr/sbin/nginx -s reload
             docker stop {$old_id} 
             docker rm {$old_id}
             docker-compose up -d --no-deps --scale php=1 --no-build --no-recreate php
