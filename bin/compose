@@ -160,6 +160,19 @@ setupTraefik
 
 # Determine the command to run...
 case "$1" in
+    install)
+        echo 'installing node modules'
+        # install the node modules
+        dockerCompose --docker run --rm -it \
+          --entrypoint bash \
+          npm -c "npm install"
+
+        # install the composer dependencies
+        dockerCompose --docker run --rm -it \
+          --entrypoint bash \
+          php -c "composer install"
+
+      ;;
     build)
         # build the application
         dockerCompose --docker build \
