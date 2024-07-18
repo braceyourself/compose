@@ -108,7 +108,7 @@ class ComposeDeployCommand extends Command
         spin(function () {
              $running_services = str(Remote::run('docker-compose config --services')->output())
                  ->explode("\n")
-                 ->filter(fn($s) => $s !== 'php')
+                 ->filter(fn($s) => !in_array($s, ['php', 'nginx']))
                  ->filter()
                  ->join(' ');
 
@@ -122,9 +122,9 @@ class ComposeDeployCommand extends Command
             docker-compose up -d --no-deps --scale php=2 --no-build --no-recreate php
             docker-compose exec nginx /usr/sbin/nginx -s reload
             docker stop {$old_id} 
-            docker rm {$old_id}
             docker-compose up -d --no-deps --scale php=1 --no-build --no-recreate php
             docker-compose exec nginx /usr/sbin/nginx -s reload
+            docker rm {$old_id}
             BASH)->throw();
 
 
