@@ -2,20 +2,24 @@
 
 namespace Braceyourself\Compose\Concerns;
 
+use Illuminate\Support\Stringable;
+
 trait HasNginxServices
 {
-    public function getNginxImageName()
+    public function getNginxImageName($env = 'local')
     {
         $hub_username = $this->getDockerHubUsername();
-        $app_name = str(config('app.name'))->slug();
+        $app_name = config('app.name') ?: basename(base_path());
 
-        return str("$hub_username/$app_name-nginx")->trim('/')->value();
+        return str("{$app_name}-{$env}-nginx")->slug()
+            ->when(!empty($hub_username), fn(Stringable $str) => $str->prepend("{$hub_username}/"))
+            ->value();
     }
 
     private function nginxServiceDefinition($config = [], $env = 'local'): array
     {
         return collect([
-            'image'          => $this->getNginxImageName(),
+            'image'          => $this->getNginxImageName($env),
             'container_name' => '${COMPOSE_DOMAIN}',
             'build'          => [
                 'context'    => $env == 'production' ? './build' : '.',

@@ -155,7 +155,7 @@ class ComposeDeployCommand extends Command
             $this->runArtisanCommand("optimize");
         }, 'Optimizing...');
 
-        spin($this->cleanUpDeploy(...), 'Cleaning up...');
+//        spin($this->cleanUpDeploy(...), 'Cleaning up...');
 
         $this->info('Deployed in ' . now()->longAbsoluteDiffForHumans($start));
 
