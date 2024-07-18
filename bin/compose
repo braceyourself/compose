@@ -86,7 +86,7 @@ publishFiles(){
 
 dockerCompose(){
   exe=""
-  dcOptions="--project-name $(basename "$PWD")"
+  dcOptions=""
 
   if command -v docker compose &> /dev/null
   then
