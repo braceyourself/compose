@@ -32,7 +32,7 @@ trait HasNginxServices
                 'PROXY_PASS_PORT' => '9000',
             ],
             'env_file'       => ['.env'],
-            'networks'       => ['default', 'traefik'],
+            'networks'       => ['default', '${COMPOSE_NETWORK}'],
             ...$this->getNginxVolumes($env),
             ...$this->getNginxLabels($env),
         ])->merge($config)->toArray();

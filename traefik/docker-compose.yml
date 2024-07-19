@@ -9,7 +9,7 @@ services:
       - "--api.insecure=true"
       - "--providers.docker=true"
       - "--providers.docker.exposedbydefault=true"
-      - "--providers.docker.network=traefik_default"
+      - "--providers.docker.network=${COMPOSE_NETWORK}"
       - "--providers.docker.defaultRule=Host(`{{ .ContainerName }}`)"
       - "--accesslog=true"
       - "--entrypoints.web.address=:80"
@@ -21,3 +21,9 @@ services:
     volumes:
       - "$HOME/.config/braceyourself/compose/traefik/letsencrypt:/letsencrypt"
       - "/var/run/docker.sock:/var/run/docker.sock:ro"
+    networks:
+      - traefik
+networks:
+  traefik:
+    external: true
+    name: ${COMPOSE_NETWORK}

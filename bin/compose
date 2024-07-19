@@ -120,10 +120,16 @@ dockerCompose(){
 }
 
 setupTraefik(){
+  # if $COMPOSE_NETWORK is not set throw error
+  if [ -z "$COMPOSE_NETWORK" ]; then
+    echo "COMPOSE_NETWORK is not set. Please add it to your .env file."
+    exit 1
+  fi
+
   # ensure traefik network exists
   if ! docker network ls | grep -q "traefik"; then
     echo 'Creating traefik network...'
-    docker network create traefik
+    docker network create $COMPOSE_NETWORK
   fi
 
   # ensure traefik is running

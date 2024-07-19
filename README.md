@@ -14,7 +14,12 @@ To install Compose for Laravel, include it in your Laravel application's `compos
 composer require --dev braceyourself/compose
 ```
 
-Upon installation, the `compose` script will be available in `vendor/bin`.
+Upon installation, the `compose` script will be available in `vendor/bin`. 
+Run the install command to set up node_modules and composer dependencies.
+
+```bash
+./vendor/bin/compose install
+```
 
 ## Usage
 
@@ -58,24 +63,6 @@ To publish the Docker Compose file to your project, run:
 
 This command will publish the Docker Compose file to your project's `base_path()`
 or the value of the `--publish-path` option.
-
-### Traefik Setup
-
-
-If Traefik is not set up, we will ask if you would like to install it.
-
-
-1. Ensure the Traefik network exists:
-
-    ```bash
-    docker network create traefik
-    ```
-
-2. Ensure Traefik is running:
-
-    ```bash
-    docker-compose up -d traefik
-    ```
 
 ## Running the Application locally
 
