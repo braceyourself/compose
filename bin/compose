@@ -83,7 +83,6 @@ publishFiles(){
       php -c "./artisan compose:publish --files docker-compose.yml --files build"
   else
     docker run --rm -it \
-      --entrypoint bash \
       -v "$(pwd):/var/www/html" \
       -w /var/www/html \
       -u "$(id -u):$(id -g)" \
