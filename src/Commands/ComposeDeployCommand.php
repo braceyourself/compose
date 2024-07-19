@@ -118,30 +118,36 @@ class ComposeDeployCommand extends Command
             spin($this->setUpStorage(...), 'Setting up storage...');
 
             spin(function () {
-                $running_services = str(Remote::run('docker-compose config --services')->output())
-                    ->explode("\n")
-                    ->filter(fn($s) => !in_array($s, ['php', 'nginx']))
-                    ->filter()
-                    ->join(' ');
+                $running_services = str(Remote::run('docker-compose config --services')->output())->explode("\n")
+                    ->filter(fn($s) => !in_array($s, ['php', 'nginx', 'database', 'redis']))->filter()->join(' ');
 
                 // restart everything except php
                 Remote::run("docker-compose up -d {$running_services} --force-recreate --remove-orphans -t0")->throw();
 
-                // get the current php container id
-                $old_id = $this->getRemoteContainers('php')->first()->ID;
-
                 $this->runRemoteScript(<<<BASH
+                #!/bin/bash
+
                 service_name=php
-                old_container_id=$(docker-compose ps -q \$service_name | tail -n1)
+                old_container_id=$(docker-compose ps \$service_name --format '{{json .ID}}' | tr -d '"' | tail -n1)
+
+                echo "OLD: \$old_container_id"
 
                 # bring a new container online, running new code  
                 # (nginx continues routing to the old container only)  
                 docker-compose up -d --no-deps --scale \$service_name=2 --no-recreate \$service_name
 
+                new_container_id=$(docker-compose ps \$service_name --format '{{json .ID}}' | tr -d '"' | tail -n1)
+                isHealthy(){
+                    echo $(docker-compose ps php --format '{{json .Health}} {{json .ID}}' | grep -qE '"healthy".*'\$new_container_id && echo 'yes' || echo 'no')
+                }
+
                 # wait for new container to be available by checking the health
-                while [ $(docker-compose ps \$service_name --format '{{json .Health}}' | tail -n1) != 'healthy' ]; do
+                health=$(isHealthy)
+                while [ "\$health" != 'yes' ]; do
                     sleep 1
+                    health=$(isHealthy)
                 done
+
 
                 # start routing requests to the new container (as well as the old)  
                 docker-compose exec nginx /usr/sbin/nginx -s reload  
@@ -154,9 +160,8 @@ class ComposeDeployCommand extends Command
 
                 # stop routing requests to the old container  
                 docker-compose exec nginx /usr/sbin/nginx -s reload  
+
                 BASH)->throw();
-
-
             }, 'Starting services...');
 
             spin(function () {
