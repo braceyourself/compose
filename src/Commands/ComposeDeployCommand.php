@@ -29,106 +29,108 @@ class ComposeDeployCommand extends Command
 
     public function handle()
     {
-        $start = now();
-        $this->loadServerCredentials();
+        try{
 
-        try {
-            spin(function () {
-                Remote::connect($this->host, $this->user)
-                    ->run("mkdir -p $this->path")
-                    ->throw();
-            },
-                "Logging in to server..."
-            );
+            $start = now();
+            $this->loadServerCredentials();
 
-            Remote::path($this->path);
+            try {
+                spin(function () {
+                    Remote::connect($this->host, $this->user)
+                        ->run("mkdir -p $this->path")
+                        ->throw();
+                },
+                    "Logging in to server..."
+                );
 
-        } catch (\Throwable $th) {
-            error(str($th->getMessage())->afterLast('==='));
-            warning("Could not login to server. Please check your credentials and try again.");
-            return;
-        }
+                Remote::path($this->path);
 
-        if ($this->option('down')) {
-            spin(fn() => $this->runRemoteComposeCommand("down -t0"),
-                "Stopping services on {$this->host}..."
-            );
-
-            $this->info("Services stopped on {$this->host}");
-            return;
-        }
-
-        match (spin(function () {
-            if (!Remote::fileExists(".env")) {
-                return 'create';
-            } else if ($this->shouldUpdateRemoteEnvFile()) {
-                return 'update';
+            } catch (\Throwable $th) {
+                error(str($th->getMessage())->afterLast('==='));
+                warning("Could not login to server. Please check your credentials and try again.");
+                return;
             }
 
-            return null;
-        }, 'Checking remote environment...')) {
-            'create' => $this->createRemoteEnv(),
-            'update' => $this->updateRemoteEnv(),
-            default => null
-        };
+            if ($this->option('down')) {
+                spin(fn() => $this->runRemoteComposeCommand("down -t0"),
+                    "Stopping services on {$this->host}..."
+                );
 
-        spin(function () {
-            $this->createDockerfile();
-            $this->createAppTarball();
-        }, 'Packaging app for deployment...');
+                $this->info("Services stopped on {$this->host}");
+                return;
+            }
+
+            match (spin(function () {
+                if (!Remote::fileExists(".env")) {
+                    return 'create';
+                } else if ($this->shouldUpdateRemoteEnvFile()) {
+                    return 'update';
+                }
+
+                return null;
+            }, 'Checking remote environment...')) {
+                'create' => $this->createRemoteEnv(),
+                'update' => $this->updateRemoteEnv(),
+                default => null
+            };
+
+            spin(function () {
+                $this->createDockerfile();
+                $this->createAppTarball();
+            }, 'Packaging app for deployment...');
 
 
-        spin(function(){
+            spin(function(){
 
-            // copy app.tar
-            $this->copyToServer("{$this->build_path}/app.tar", "{$this->path}/app.tar");
+                // copy app.tar
+                $this->copyToServer("{$this->build_path}/app.tar", "{$this->path}/app.tar");
 
-            // delete local app.tar
-            unlink("{$this->build_path}/app.tar");
+                // delete local app.tar
+                unlink("{$this->build_path}/app.tar");
 
-            // extract
-            $this->runRemoteScript("mkdir app && tar -xf app.tar -C app")->throw();
+                // extract
+                $this->runRemoteScript("mkdir app && tar -xf app.tar -C app")->throw();
 
-            // overwrite app/build with compose build
-            $this->copyToServer($this->build_path, "{$this->path}/app");
+                // overwrite app/build with compose build
+                $this->copyToServer($this->build_path, "{$this->path}/app");
 
-            // create docker-compose file
-            file_put_contents('/tmp/docker-compose.yml', $this->getComposeYaml('production'));
-            $this->copyToServer('/tmp/docker-compose.yml', $this->path);
+                // create docker-compose file
+                file_put_contents('/tmp/docker-compose.yml', $this->getComposeYaml('production'));
+                $this->copyToServer('/tmp/docker-compose.yml', $this->path);
 
-        }, 'Setting up app on remote server...');
+            }, 'Setting up app on remote server...');
 
-        spin(function () {
-        }, 'Setting up docker compose...');
+            spin(function () {
+            }, 'Setting up docker compose...');
 
-        spin(function () {
-            $vite_args = str(collect($this->getRemoteEnv()->explode("\n"))
-                ->filter(fn($line) => str($line)->startsWith('VITE_'))
-                ->map(function ($value) {
-                    $value = str($value)->replace(' ', '\ ');
-                    return "--build-arg '{$value}'";
-                })->join(' '))->trim(' ');
+            spin(function () {
+                $vite_args = str(collect($this->getRemoteEnv()->explode("\n"))
+                    ->filter(fn($line) => str($line)->startsWith('VITE_'))
+                    ->map(function ($value) {
+                        $value = str($value)->replace(' ', '\ ');
+                        return "--build-arg '{$value}'";
+                    })->join(' '))->trim(' ');
 
-            $this->runRemoteComposeCommand("build {$vite_args} php");
-            $this->runRemoteComposeCommand("build {$vite_args} nginx");
-        }, 'Building images...');
+                $this->runRemoteComposeCommand("build {$vite_args} php");
+                $this->runRemoteComposeCommand("build {$vite_args} nginx");
+            }, 'Building images...');
 
-        spin($this->setUpStorage(...), 'Setting up storage...');
+            spin($this->setUpStorage(...), 'Setting up storage...');
 
-        spin(function () {
-             $running_services = str(Remote::run('docker-compose config --services')->output())
-                 ->explode("\n")
-                 ->filter(fn($s) => !in_array($s, ['php', 'nginx']))
-                 ->filter()
-                 ->join(' ');
+            spin(function () {
+                $running_services = str(Remote::run('docker-compose config --services')->output())
+                    ->explode("\n")
+                    ->filter(fn($s) => !in_array($s, ['php', 'nginx']))
+                    ->filter()
+                    ->join(' ');
 
-             // restart everything except php
-             Remote::run("docker-compose up -d {$running_services} --force-recreate --remove-orphans -t0")->throw();
+                // restart everything except php
+                Remote::run("docker-compose up -d {$running_services} --force-recreate --remove-orphans -t0")->throw();
 
-            // get the current php container id
-            $old_id = $this->getRemoteContainers('php')->first()->ID;
+                // get the current php container id
+                $old_id = $this->getRemoteContainers('php')->first()->ID;
 
-            $this->runRemoteScript(<<<BASH
+                $this->runRemoteScript(<<<BASH
             service_name=php
             old_container_id=$(docker ps -f name=\$service_name -q | tail -n1)
 
@@ -156,38 +158,40 @@ class ComposeDeployCommand extends Command
             BASH)->throw();
 
 
-        }, 'Starting services...');
+            }, 'Starting services...');
 
-        spin(function () {
-            // wait until database is healthy
-            while (true) {
-                $database = json_decode(Remote::run("docker-compose ps --format json database")->throw()->output());
+            spin(function () {
+                // wait until database is healthy
+                while (true) {
+                    $database = json_decode(Remote::run("docker-compose ps --format json database")->throw()->output());
 
-                if ($database->Health == 'healthy') {
-                    break;
+                    if ($database->Health == 'healthy') {
+                        break;
+                    }
+
+                    sleep(1);
                 }
+            }, 'Waiting for database...');
 
-                sleep(1);
-            }
-        }, 'Waiting for database...');
+            spin(function () {
+                $this->runArtisanCommand("migrate --force");
+            }, 'Running migrations...');
 
-        spin(function () {
-            $this->runArtisanCommand("migrate --force");
-        }, 'Running migrations...');
+            spin(function () {
+                $this->runArtisanCommand("key:generate");
+            }, 'Generating app key...');
 
-        spin(function () {
-            $this->runArtisanCommand("key:generate");
-        }, 'Generating app key...');
+            spin(function () {
+                $this->runArtisanCommand("optimize");
+            }, 'Optimizing...');
 
-        spin(function () {
-            $this->runArtisanCommand("optimize");
-        }, 'Optimizing...');
+            $this->info('Deployed in ' . now()->longAbsoluteDiffForHumans($start));
 
-        spin($this->cleanUpDeploy(...), 'Cleaning up...');
+            $this->info("Your app is now live at " . $this->getRemoteEnv('APP_URL')->after('='));
 
-        $this->info('Deployed in ' . now()->longAbsoluteDiffForHumans($start));
-
-        $this->info("Your app is now live at " . $this->getRemoteEnv('APP_URL')->after('='));
+        } finally {
+            spin($this->cleanUpDeploy(...), 'Cleaning up...');
+        }
     }
 
     private function createAppTarball(): string
