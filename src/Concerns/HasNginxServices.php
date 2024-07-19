@@ -22,8 +22,8 @@ trait HasNginxServices
             'image'          => $this->getNginxImageName($env),
             'container_name' => '${COMPOSE_DOMAIN}',
             'build'          => [
-                'context'    => $env == 'production' ? './build' : '.',
-                'dockerfile' => $env == 'production' ? './Dockerfile' : './build/Dockerfile',
+                'context'    => $env == 'production' ? './app' : '.',
+                'dockerfile' => './build/Dockerfile',
                 'target'     => 'nginx'
             ],
             'restart'        => 'always',

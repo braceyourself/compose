@@ -77,18 +77,28 @@ class ComposeDeployCommand extends Command
             $this->createAppTarball();
         }, 'Packaging app for deployment...');
 
-        spin(fn() => $this->copyToServer($this->build_path, $this->path),
-            'Copying app to remote server...'
-        );
 
-        spin($this->extractAppTarball(...),
-            'Setting up app on remote server...'
-        );
+        spin(function(){
+
+            // copy app.tar
+            $this->copyToServer("{$this->build_path}/app.tar", "{$this->path}/app.tar");
+
+            // delete local app.tar
+            unlink("{$this->build_path}/app.tar");
+
+            // extract
+            $this->runRemoteScript("mkdir app && tar -xf app.tar -C app")->throw();
+
+            // overwrite app/build with compose build
+            $this->copyToServer($this->build_path, "{$this->path}/app");
+
+            // create docker-compose file
+            file_put_contents('/tmp/docker-compose.yml', $this->getComposeYaml('production'));
+            $this->copyToServer('/tmp/docker-compose.yml', $this->path);
+
+        }, 'Setting up app on remote server...');
 
         spin(function () {
-            $content = $this->getComposeYaml('production');
-            file_put_contents('/tmp/docker-compose.yml', $content);
-            $this->copyToServer('/tmp/docker-compose.yml', $this->path);
         }, 'Setting up docker compose...');
 
         spin(function () {
@@ -344,7 +354,7 @@ class ComposeDeployCommand extends Command
 
     private function cleanUpDeploy(): void
     {
-        $this->runRemoteScript("rm -rf {$this->path}/build")->throw();
+        $this->runRemoteScript("rm -rf {$this->path}/app")->throw();
     }
 
     private function buildEnvFromExampleFile(): string
