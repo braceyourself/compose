@@ -139,8 +139,7 @@ class ComposeDeployCommand extends Command
                 docker-compose up -d --no-deps --scale \$service_name=2 --no-recreate \$service_name
 
                 # wait for new container to be available by checking the health
-                new_container_id=$(docker ps \$service_name -q | tail -n1)
-                while [ $(docker-compose ps \$service_name --format '{{json .Health}}') != 'healthy' ]; do
+                while [ $(docker-compose ps \$service_name --format '{{json .Health}}' | tail -n1) != 'healthy' ]; do
                     sleep 1
                 done
 
