@@ -127,10 +127,9 @@ setupTraefik(){
   fi
 
   # ensure traefik is running
-  if ! docker ps --filter "name=traefik" | grep -q "traefik"; then
-    echo "Starting traefik..."
-    dockerCompose  up -d
-  fi
+    dockerCompose --docker \
+      -f "$(pwd)/vendor/braceyourself/compose/traefik/docker-compose.yml" \
+      up -d
 }
 
 spin(){
@@ -160,7 +159,6 @@ spin(){
 #############################################
 
 publishFiles
-setupTraefik
 
 # Determine the command to run...
 case "$1" in
@@ -192,6 +190,11 @@ case "$1" in
         dockerCompose /var/www/html/artisan compose:"$*"
         ;;
     up|down|run|exec|config|ps|logs)
+        # if up
+        if [ "$1" == "up" ]; then
+          setupTraefik
+        fi
+
         # pass the command to docker compose
         dockerCompose --docker "$@"
         ;;

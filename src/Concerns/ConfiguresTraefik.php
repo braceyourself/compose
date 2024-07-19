@@ -3,6 +3,9 @@
 namespace Braceyourself\Compose\Concerns;
 
 use Illuminate\Support\Facades\Process;
+use Braceyourself\Compose\Facades\Compose;
+use function Laravel\Prompts\spin;
+
 
 trait ConfiguresTraefik
 {
@@ -24,26 +27,10 @@ trait ConfiguresTraefik
             ->whenEmpty(function () {
                 $compose_file = __DIR__ . '/../../traefik/docker-compose.yml';
 
-                $this->info("Starting Traefik...");
-                Process::run(<<<BASH
-                docker run -d \
-                  --name traefik.localhost \
-                  --restart always \
-                  -p 80:80 \
-                  -p 443:443 \
-                  -v "\$HOME/.config/braceyourself/compose/traefik/letsencrypt:/letsencrypt" \
-                  -v /var/run/docker.sock:/var/run/docker.sock:ro \
-                  traefik:3.0 \
-                  --log.level=TRACE \
-                  --api.insecure=true \
-                  --providers.docker=true \
-                  --providers.docker.exposedbydefault=true \
-                  --providers.docker.network=traefik_default \
-                  --providers.docker.defaultRule=Host(`{{ .ContainerName }}`) \
-                  --accesslog=true \
-                  --entrypoints.web.address=:80 \
-                  --label "traefik.http.services.traefik.loadbalancer.server.port=8080"
-                BASH);
+                spin(
+                    fn() => Compose::run("--file {$compose_file} up -d")->throw()->output(),
+                    'Starting Traefik...'
+                );
             });
     }
 }
