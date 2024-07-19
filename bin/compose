@@ -80,8 +80,6 @@ publishFiles(){
     --entrypoint bash \
     -u "$(id -u):$(id -g)" \
     php -c "./artisan compose:publish --files docker-compose.yml --files build"
-        #link .env file
-  ln -sf "$PWD/.env" /tmp/compose/.env
 }
 
 dockerCompose(){
@@ -99,7 +97,6 @@ dockerCompose(){
 
   if [ "$1" == '--docker' ]; then
     shift 1
-    echo "$exe $*"
     $exe "$@"
     return 0
   fi
@@ -111,7 +108,6 @@ dockerCompose(){
     exe="$exe run --rm --entrypoint=php php"
   fi
 
-  echo "$exe $@"
   $exe "$@"
 }
 
