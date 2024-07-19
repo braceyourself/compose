@@ -132,15 +132,15 @@ class ComposeDeployCommand extends Command
 
                 $this->runRemoteScript(<<<BASH
                 service_name=php
-                old_container_id=$(docker ps -f name=\$service_name -q | tail -n1)
+                old_container_id=$(docker-compose ps -q \$service_name | tail -n1)
 
                 # bring a new container online, running new code  
                 # (nginx continues routing to the old container only)  
                 docker-compose up -d --no-deps --scale \$service_name=2 --no-recreate \$service_name
 
                 # wait for new container to be available by checking the health
-                new_container_id=$(docker ps -f name=\$service_name -q | tail -n1)
-                while [ $(docker inspect --format='{{json .State.Health.Status}}' \$new_container_id) != 'healthy' ]; do
+                new_container_id=$(docker ps \$service_name -q | tail -n1)
+                while [ $(docker-compose ps \$service_name --format '{{json .Health}}') != 'healthy' ]; do
                     sleep 1
                 done
 
