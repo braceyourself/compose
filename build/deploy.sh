@@ -13,10 +13,8 @@ isHealthy(){
 }
 
 # wait for new container to be available by checking the health
-health=$(isHealthy)
-while [ "$health" != 'yes' ]; do
+while [ "$(isHealthy)" != 'yes' ]; do
     sleep 1
-    health=$(isHealthy)
 done
 
 
