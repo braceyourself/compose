@@ -189,20 +189,28 @@ case "$1" in
           --build-arg GROUP_ID="$(id -g)"
         ;;
 
-    deploy)
-        dockerCompose --docker run --rm -it --entrypoint=php php /var/www/html/artisan compose:deploy
-        ;;
-    publish)
-        dockerCompose /var/www/html/artisan compose:"$*"
-        ;;
-    up|down|run|exec|config|ps|logs)
-        # if up
-        if [ "$1" == "up" ]; then
+    up|start|down|run|exec|config|ps|logs)
+        options=''
+        # if up or start
+        if [ "$1" == "up" ] || [ "$1" == "start" ]; then
           setupTraefik
         fi
 
+        if [ "$1" == "start" ]; then
+          options="-d"
+        fi
+
         # pass the command to docker compose
-        dockerCompose --docker "$@"
+        dockerCompose --docker "$* $options"
+        ;;
+    deploy)
+        dockerCompose --docker run --rm -it \
+          --entrypoint=php \
+          php /var/www/html/artisan \
+          compose:deploy
+        ;;
+    publish)
+        dockerCompose /var/www/html/artisan compose:"$*"
         ;;
     *)
         dockerCompose /var/www/html/artisan "$@"
