@@ -198,7 +198,7 @@ case "$1" in
 
         if [ "$1" == "start" ]; then
           shift 1
-          options="-d"
+          options="up -d"
         fi
 
         # pass the command to docker compose
