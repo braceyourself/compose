@@ -78,9 +78,9 @@ publishFiles(){
   # use docker-compose if docker-compose.yml file exists
   if [ -f docker-compose.yml ]; then
     dockerCompose --docker run --rm -it \
-      --entrypoint bash \
       -u "$(id -u):$(id -g)" \
-      php -c "./artisan compose:publish --files docker-compose.yml --files build"
+      --entrypoint=php \
+      php ./artisan compose:publish --files docker-compose.yml --files build
   else
     docker run --rm -it \
       -v "$(pwd):/var/www/html" \
@@ -105,7 +105,7 @@ dockerCompose(){
 
   if [ "$1" == '--docker' ]; then
     shift 1
-    $exe "$@"
+    $exe $@
     return 0
   fi
 
@@ -116,7 +116,7 @@ dockerCompose(){
     exe="$exe run --rm --entrypoint=php php"
   fi
 
-  $exe "$@"
+  $exe $@
 }
 
 setupTraefik(){
@@ -132,10 +132,13 @@ setupTraefik(){
     docker network create $COMPOSE_NETWORK
   fi
 
-  # ensure traefik is running
+  # ensure traefik is running if not
+  if ! docker ps -a | grep -q "traefik"; then
+    echo 'Starting traefik...'
     dockerCompose --docker \
       -f "$(pwd)/vendor/braceyourself/compose/traefik/docker-compose.yml" \
       up -d
+  fi
 }
 
 spin(){
@@ -190,7 +193,6 @@ case "$1" in
         ;;
 
     up|start|down|run|exec|config|ps|logs)
-        options=''
         # if up or start
         if [ "$1" == "up" ] || [ "$1" == "start" ]; then
           setupTraefik
