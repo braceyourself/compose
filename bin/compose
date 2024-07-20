@@ -191,20 +191,19 @@ case "$1" in
           --build-arg USER_ID="$(id -u)" \
           --build-arg GROUP_ID="$(id -g)"
         ;;
+    start)
+        shift 1
+        setupTraefik
 
-    up|start|down|run|exec|config|ps|logs)
-        # if up or start
-        if [ "$1" == "up" ] || [ "$1" == "start" ]; then
-          setupTraefik
-        fi
+        dockerCompose --docker "up -d $*"
+        ;;
+    up)
+        setupTraefik
 
-        if [ "$1" == "start" ]; then
-          shift 1
-          # pass the command to docker compose
-          dockerCompose --docker "up -d $*"
-          exit 0
-        fi
+        dockerCompose --docker "up $*"
 
+        ;;
+    down|run|exec|config|ps|logs)
         dockerCompose --docker "$*"
         ;;
     deploy)

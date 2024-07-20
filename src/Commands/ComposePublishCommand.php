@@ -21,7 +21,6 @@ class ComposePublishCommand extends Command
 
     public function handle()
     {
-        $published = [];
         $publish_path = $this->option('publish-path') ?: '.';
         $compose_build_dir = __DIR__.'/../../build';
         $files = $this->option('files') ?: multiselect(
@@ -42,23 +41,13 @@ class ComposePublishCommand extends Command
                     continue;
                 }
                 copy("{$compose_build_dir}/{$file}", "{$publish_path}/build/".basename($file));
-
-                $published[] = "{$publish_path}/build/".basename($file);
             }
         }
 
         if (in_array('docker-compose.yml', $files)) {
             file_put_contents("{$publish_path}/docker-compose.yml", $this->getComposeYaml());
-
-            $published[] = "{$publish_path}/docker-compose.yml";
         }
 
-        $this->info("Compose files published:");
-
-        if(file_exists("{$publish_path}/build")){
-            foreach($published as $file) {
-                $this->info("  - {$file}");
-            }
-        }
+        $this->info("Compose files published.");
     }
 }
