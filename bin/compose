@@ -199,8 +199,9 @@ case "$1" in
         fi
 
         if [ "$1" == "start" ]; then
+          shift 1
           # pass the command to docker compose
-          dockerCompose --docker "up -d"
+          dockerCompose --docker "up -d $*"
           exit 0
         fi
 
