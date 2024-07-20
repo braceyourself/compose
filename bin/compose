@@ -197,12 +197,12 @@ case "$1" in
         fi
 
         if [ "$1" == "start" ]; then
-          shift 1
-          options="up -d"
+          # pass the command to docker compose
+          dockerCompose --docker "up -d"
+          exit 0
         fi
 
-        # pass the command to docker compose
-        dockerCompose --docker "$* $options"
+        dockerCompose --docker "$*"
         ;;
     deploy)
         dockerCompose --docker run --rm -it \
