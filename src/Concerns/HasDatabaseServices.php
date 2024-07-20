@@ -44,7 +44,7 @@ trait HasDatabaseServices
 
     private function getPortMappings(): array
     {
-        if ($host_port = config('compose.services.mysql.expose_on_port')) {
+        if ($host_port = config('compose.services.database.expose_on_port')) {
             return [
                 'ports' => [
                     "{$host_port}:3306"
