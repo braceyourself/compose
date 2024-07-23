@@ -8,7 +8,21 @@ trait BuildsDockerfile
 {
     private function createDockerfile()
     {
-        file_put_contents(__DIR__.'/../../build/Dockerfile', $this->getDockerfile());
+        file_put_contents(__DIR__ . '/../../build/Dockerfile', $this->getDockerfile());
+    }
+
+    public function copyLocalRepositories()
+    {
+        return collect(data_get(json_decode(file_get_contents(base_path('composer.json'))), 'repositories'))
+            ->filter(function ($repo) {
+                return $repo->type === 'path' && (
+                    str($repo->url)->startsWith('./')
+                    || file_exists(base_path(dirname($repo->url)))
+                );
+            })->map(function ($repo) {
+                $dirname = dirname($repo->url);
+                return "COPY --chown=www-data:www-data {$dirname} {$dirname}";
+            })->join("\n");
     }
 
     private function getDockerfile()
@@ -39,6 +53,7 @@ trait BuildsDockerfile
         USER www-data
         
         COPY composer.json composer.lock ./
+        {$this->copyLocalRepositories()}
         RUN composer install --no-dev --no-interaction --no-progress --no-scripts
         COPY --chown=www-data:www-data . .
         RUN  mkdir -p /var/www/html/storage/logs /var/www/html/bootstrap/cache \
@@ -82,7 +97,7 @@ trait BuildsDockerfile
         ### nginx ###
         FROM nginx AS nginx
         COPY build/nginx.conf /etc/nginx/templates/default.conf.template
-        COPY --from=npm /var/www/html/public /var/www/html/public
+        COPY --from=production /var/www/html/public /var/www/html/public
         RUN ln -sf /var/www/html/storage/app/public /var/www/html/public/storage
         
         DOCKERFILE;
