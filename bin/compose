@@ -198,6 +198,7 @@ case "$1" in
         dockerCompose --docker "up -d $*"
         ;;
     up)
+        shift 1
         setupTraefik
 
         dockerCompose --docker "up $*"

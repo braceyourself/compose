@@ -91,6 +91,9 @@ trait HasPhpServices
         if (file_exists($composer_json = base_path('composer.json'))) {
             $volumes = collect(data_get(json_decode(file_get_contents($composer_json), true), 'repositories', []))
                 ->where('type', 'path')
+                ->filter(function ($repo) {
+                    return str($repo['url'])->startsWith('/');
+                })
                 ->map->url
                 // map it directly to the container
                 ->map(fn($path) => "$path:$path")
