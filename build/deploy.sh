@@ -26,6 +26,8 @@ docker stop $old_container_id
 docker rm $old_container_id
 
 docker-compose up -d --no-deps --scale $service_name=1 --no-recreate $service_name
+# todo: remove this reload and set up a public volume
+docker-compose up -d nginx
 
 # stop routing requests to the old container
 docker-compose exec nginx /usr/sbin/nginx -s reload
