@@ -37,8 +37,10 @@ trait HasNodeServices
             }
         }
 
+        $app_name = str(config('app.name'))->slug();
+
         return collect([
-            'image'          => data_get($config, 'image', 'node'),
+            'image'          => data_get($config, 'image', "{$app_name}-node"),
             'container_name' => 'hmr.${COMPOSE_DOMAIN}',
             'user'           => '${USER_ID}:${GROUP_ID}',
             'working_dir'    => '/var/www/html',
