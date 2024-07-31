@@ -1,6 +1,6 @@
 # Compose for Laravel
 
-![compose-for-laravel]([http://url/to/img.png](https://ethanbrace.com/storage/01J43A3V79DYZYJJ3FDMBR56ZN.png))
+![compose-for-laravel](https://ethanbrace.com/storage/01J43A3V79DYZYJJ3FDMBR56ZN.png)
 
 
 ### This package is in development and not yet ready for production use.
