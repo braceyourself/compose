@@ -37,8 +37,15 @@ trait HasNodeServices
             }
         }
 
+        $app_name = str(config('app.name'))->slug();
+
         return collect([
-            'image'          => data_get($config, 'image', 'node'),
+            'image'          => data_get($config, 'image', "{$app_name}-node"),
+            'build' => [
+                'context'    => $env == 'production' ? './app' : '.',
+                'dockerfile' => './build/Dockerfile',
+                'target'     => 'npm'
+            ],
             'container_name' => 'hmr.${COMPOSE_DOMAIN}',
             'user'           => '${USER_ID}:${GROUP_ID}',
             'working_dir'    => '/var/www/html',
