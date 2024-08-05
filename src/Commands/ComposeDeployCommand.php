@@ -123,8 +123,7 @@ class ComposeDeployCommand extends Command
 
                 // restart everything except php
                 Remote::run("docker-compose up -d {$running_services} --force-recreate --remove-orphans -t0")->throw();
-
-                $this->runRemoteScript("{$this->path}/app/build/deploy.sh")->throw();
+                $this->runRemoteScript("chmod +x {$this->path}/app/build/deploy.sh && {$this->path}/app/build/deploy.sh")->throw();
             }, 'Starting services...');
 
             spin(function () {
