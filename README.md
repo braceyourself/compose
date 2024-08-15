@@ -1,6 +1,6 @@
 # Compose for Laravel
 
-![compose-for-laravel](https://ethanbrace.com/storage/01J43A3V79DYZYJJ3FDMBR56ZN.png)
+![compose-for-laravel](https://ethanbrace.com/storage/01J44W2KY2YHNPT8FVV7GAAHNV.png)
 
 
 ### This package is in development and not yet ready for production use.
