@@ -134,6 +134,11 @@ class ComposeDeployCommand extends Command
             spin($this->setUpStorage(...), 'Setting up storage...');
 
             spin(function () {
+                $this->ensureTraefikNetworkExists();
+                $this->ensureTraefikIsRunning();
+            }, 'Setting up Traefik...');
+
+            spin(function () {
 
                 $running_services = str(Remote::run("{$this->docker_compose} config --services")->output())->explode("\n")
                     ->filter(fn($s) => !in_array($s, ['php', 'nginx', 'database', 'redis']))->filter()->join(' ');
