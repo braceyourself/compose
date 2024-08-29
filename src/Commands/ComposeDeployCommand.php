@@ -120,9 +120,6 @@ class ComposeDeployCommand extends Command
             }, 'Setting up app on remote server...');
 
             spin(function () {
-            }, 'Setting up docker compose...');
-
-            spin(function () {
                 $vite_args = str(collect($this->getRemoteEnv()->explode("\n"))
                     ->filter(fn($line) => str($line)->startsWith('VITE_'))
                     ->map(function ($value) {
@@ -137,12 +134,15 @@ class ComposeDeployCommand extends Command
             spin($this->setUpStorage(...), 'Setting up storage...');
 
             spin(function () {
+
                 $running_services = str(Remote::run("{$this->docker_compose} config --services")->output())->explode("\n")
                     ->filter(fn($s) => !in_array($s, ['php', 'nginx', 'database', 'redis']))->filter()->join(' ');
 
                 // restart everything except php
                 Remote::run("{$this->docker_compose} up -d {$running_services} --force-recreate --remove-orphans -t0")->throw();
+
                 $this->runRemoteScript("chmod +x {$this->path}/app/build/deploy.sh && {$this->path}/app/build/deploy.sh")->throw();
+
             }, 'Starting services...');
 
             spin(function () {
@@ -303,9 +303,9 @@ class ComposeDeployCommand extends Command
         );
     }
 
-    private function runRemoteScript(string $script, $tty = false)
+    private function runRemoteScript(string $script, $tty = false, $timeout = 120)
     {
-        return Remote::run($script);
+        return Remote::timeout($timeout)->run($script);
     }
 
     private function copyToServer(string $local_path, mixed $path, $spinner = false): void
