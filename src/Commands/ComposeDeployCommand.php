@@ -26,10 +26,11 @@ class ComposeDeployCommand extends Command
     private mixed $user;
     private mixed $host;
     private mixed $path;
+    private $docker_compose;
 
     public function handle()
     {
-        try{
+        try {
 
             $start = now();
             $this->loadServerCredentials();
@@ -60,6 +61,14 @@ class ComposeDeployCommand extends Command
                 return;
             }
 
+            // get compose command to use
+            try {
+                $this->runRemoteScript("docker-compose --version")->throw();
+                $this->docker_compose = "docker-compose";
+            } catch (\Throwable $th) {
+                $this->docker_compose = "docker compose";
+            }
+
             match (spin(function () {
                 if (!Remote::fileExists(".env")) {
                     return 'create';
@@ -80,7 +89,7 @@ class ComposeDeployCommand extends Command
             }, 'Packaging app for deployment...');
 
 
-            spin(function(){
+            spin(function () {
 
 
                 // copy app.tar
@@ -120,18 +129,18 @@ class ComposeDeployCommand extends Command
             spin($this->setUpStorage(...), 'Setting up storage...');
 
             spin(function () {
-                $running_services = str(Remote::run('docker-compose config --services')->output())->explode("\n")
+                $running_services = str(Remote::run("{$this->docker_compose} config --services")->output())->explode("\n")
                     ->filter(fn($s) => !in_array($s, ['php', 'nginx', 'database', 'redis']))->filter()->join(' ');
 
                 // restart everything except php
-                Remote::run("docker-compose up -d {$running_services} --force-recreate --remove-orphans -t0")->throw();
+                Remote::run("{$this->docker_compose} up -d {$running_services} --force-recreate --remove-orphans -t0")->throw();
                 $this->runRemoteScript("chmod +x {$this->path}/app/build/deploy.sh && {$this->path}/app/build/deploy.sh")->throw();
             }, 'Starting services...');
 
             spin(function () {
                 // wait until database is healthy
                 while (true) {
-                    $database = json_decode(Remote::run("docker-compose ps --format json database")->throw()->output());
+                    $database = json_decode(Remote::run("{$this->docker_compose} ps --format json database")->throw()->output());
 
                     if ($database->Health == 'healthy') {
                         break;
@@ -291,7 +300,7 @@ class ComposeDeployCommand extends Command
         return Remote::run($script);
     }
 
-    private function copyToServer(string $local_path, mixed $path): void
+    private function copyToServer(string $local_path, mixed $path, $spinner = false): void
     {
         $path = str($path)->rtrim('/');
 
@@ -306,7 +315,7 @@ class ComposeDeployCommand extends Command
     {
         Remote::forever()
             ->addOption('-t')
-            ->run("docker-compose {$command}")
+            ->run("{$this->docker_compose} {$command}")
             ->throw();
     }
 
@@ -334,7 +343,7 @@ class ComposeDeployCommand extends Command
 
     private function runArtisanCommand(string $command): void
     {
-        $this->runRemoteScript("docker-compose run --entrypoint=bash --rm php -c './artisan {$command}'", tty: true)->throw();
+        $this->runRemoteScript("{$this->docker_compose} run --entrypoint=bash --rm php -c './artisan {$command}'", tty: true)->throw();
     }
 
     private function extractAppTarball(): void
@@ -378,7 +387,7 @@ class ComposeDeployCommand extends Command
     private function getRemoteContainers($service)
     {
         return str(
-            Remote::run("docker-compose ps --format json {$service}")
+            Remote::run("{$this->docker_compose} ps --format json {$service}")
                 ->throw()
                 ->output()
         )
@@ -390,10 +399,10 @@ class ComposeDeployCommand extends Command
 
     private function scaleService(string $service, int $replicas): void
     {
-        Remote::run("docker-compose up -d --no-deps --scale {$service}={$replicas} --no-build --no-recreate {$service}")->throw();
+        Remote::run("{$this->docker_compose} up -d --no-deps --scale {$service}={$replicas} --no-build --no-recreate {$service}")->throw();
         do {
             sleep(2);
         } while ($this->getRemoteContainers($service)->every('Health', 'healthy'));
-        Remote::run("docker-compose exec nginx /usr/sbin/nginx -s reload")->throw();
+        Remote::run("{$this->docker_compose} exec nginx /usr/sbin/nginx -s reload")->throw();
     }
 }
