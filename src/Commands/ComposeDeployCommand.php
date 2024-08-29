@@ -134,8 +134,8 @@ class ComposeDeployCommand extends Command
             spin($this->setUpStorage(...), 'Setting up storage...');
 
             spin(function () {
-                $this->ensureTraefikNetworkExists();
-                $this->ensureTraefikIsRunning();
+                $this->ensureTraefikNetworkExists(Remote::class);
+                $this->ensureTraefikIsRunning(Remote::class);
             }, 'Setting up Traefik...');
 
             spin(function () {
