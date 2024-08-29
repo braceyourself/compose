@@ -1,4 +1,8 @@
 #!/bin/bash
+
+# throw errors
+set -e
+
 docker_compose=''
 
 if command -v docker compose &> /dev/null
