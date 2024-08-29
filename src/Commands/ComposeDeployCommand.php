@@ -134,8 +134,24 @@ class ComposeDeployCommand extends Command
             spin($this->setUpStorage(...), 'Setting up storage...');
 
             spin(function () {
-                $this->ensureTraefikNetworkExists(Remote::class);
-                $this->ensureTraefikIsRunning(Remote::class);
+
+                str($this->runRemoteScript("docker network ls --format '{{.Name}}'")->output())
+                    ->explode("\n")
+                    ->filter(fn($network) => str($network)->contains('traefik'))
+                    ->whenEmpty(function () {
+                        $this->runRemoteScript("docker network create traefik", tty: true);
+                    }, fn($c) => $c->first());
+
+                str($this->runRemoteScript("docker ps --format '{{.Image}}'")->throw()->output())
+                    ->explode("\n")
+                    ->filter(fn($container) => str($container)->contains('traefik'))
+                    ->whenEmpty(function () {
+                        $compose_file = __DIR__ . '/../../traefik/docker-compose.yml';
+                        $this->runRemoteComposeCommand("--file {$compose_file} up -d")
+                            ->throw()
+                            ->output();
+                    });
+
             }, 'Setting up Traefik...');
 
             spin(function () {
@@ -326,7 +342,7 @@ class ComposeDeployCommand extends Command
 
     private function runRemoteComposeCommand(string $command)
     {
-        Remote::forever()
+        return Remote::forever()
             ->addOption('-t')
             ->run("{$this->docker_compose} {$command}")
             ->throw();
