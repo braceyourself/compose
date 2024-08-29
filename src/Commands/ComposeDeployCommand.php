@@ -61,6 +61,14 @@ class ComposeDeployCommand extends Command
                 return;
             }
 
+            try {
+                $this->runRemoteScript("docker --version")->throw();
+            } catch (\Throwable $th) {
+                $this->error("Docker is not installed on the remote server. Please install docker and try again.");
+                return;
+            }
+
+
             // get compose command to use
             try {
                 $this->runRemoteScript("docker-compose --version")->throw();
