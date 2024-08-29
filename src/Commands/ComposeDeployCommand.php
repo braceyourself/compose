@@ -82,6 +82,7 @@ class ComposeDeployCommand extends Command
 
             spin(function(){
 
+
                 // copy app.tar
                 $this->copyToServer("{$this->build_path}/app.tar", "{$this->path}/app.tar");
 
@@ -89,6 +90,7 @@ class ComposeDeployCommand extends Command
                 unlink("{$this->build_path}/app.tar");
 
                 // extract
+                $this->runRemoteScript("rm -rf {$this->path}/app")->throw();
                 $this->runRemoteScript("mkdir app && tar -xf app.tar -C app")->throw();
 
                 // overwrite app/build with compose build
@@ -123,8 +125,7 @@ class ComposeDeployCommand extends Command
 
                 // restart everything except php
                 Remote::run("docker-compose up -d {$running_services} --force-recreate --remove-orphans -t0")->throw();
-
-                $this->runRemoteScript("{$this->path}/app/build/deploy.sh")->throw();
+                $this->runRemoteScript("chmod +x {$this->path}/app/build/deploy.sh && {$this->path}/app/build/deploy.sh")->throw();
             }, 'Starting services...');
 
             spin(function () {
