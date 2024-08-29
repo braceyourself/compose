@@ -140,16 +140,19 @@ class ComposeDeployCommand extends Command
                     ->filter(fn($network) => str($network)->contains('traefik'))
                     ->whenEmpty(function () {
                         $this->runRemoteScript("docker network create traefik", tty: true);
-                    }, fn($c) => $c->first());
+                    });
 
                 str($this->runRemoteScript("docker ps --format '{{.Image}}'")->throw()->output())
                     ->explode("\n")
                     ->filter(fn($container) => str($container)->contains('traefik'))
                     ->whenEmpty(function () {
-                        $compose_file = __DIR__ . '/../../traefik/docker-compose.yml';
-                        $this->runRemoteComposeCommand("--file {$compose_file} up -d")
+
+                        $compose_file = file_get_contents(__DIR__ . '/../../traefik/docker-compose.yml');
+
+                        $this->runRemoteScript("echo '{$compose_file}' | {$this->docker_compose} --file - up -d")
                             ->throw()
                             ->output();
+
                     });
 
             }, 'Setting up Traefik...');
@@ -324,9 +327,18 @@ class ComposeDeployCommand extends Command
         );
     }
 
+    private function runRemoteComposeCommand(string $command)
+    {
+        return Remote::forever()
+            ->addOption('-t')
+            ->run("{$this->docker_compose} {$command}")
+            ->throw();
+    }
+
     private function runRemoteScript(string $script, $tty = false, $timeout = 120)
     {
-        return Remote::timeout($timeout)->run($script);
+        return Remote::timeout($timeout)
+            ->run($script);
     }
 
     private function copyToServer(string $local_path, mixed $path, $spinner = false): void
@@ -338,14 +350,6 @@ class ComposeDeployCommand extends Command
             ->join(' ');
 
         Process::run("scp {$options} {$local_path} {$this->user}@{$this->host}:{$path}")->throw();
-    }
-
-    private function runRemoteComposeCommand(string $command)
-    {
-        return Remote::forever()
-            ->addOption('-t')
-            ->run("{$this->docker_compose} {$command}")
-            ->throw();
     }
 
     private function ensureAppKeyIsSet(): void
