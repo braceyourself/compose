@@ -139,7 +139,7 @@ class ComposeDeployCommand extends Command
                     ->explode("\n")
                     ->filter(fn($network) => str($network)->contains('traefik'))
                     ->whenEmpty(function () {
-                        $this->runRemoteScript("docker network create traefik", tty: true);
+                        $this->runRemoteScript("docker network create traefik_default", tty: true);
                     });
 
                 str($this->runRemoteScript("docker ps --format '{{.Image}}'")->throw()->output())
