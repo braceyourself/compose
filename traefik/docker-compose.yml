@@ -13,6 +13,7 @@ services:
       - "--providers.docker.defaultRule=Host(`{{ .ContainerName }}`)"
       - "--accesslog=true"
       - "--entrypoints.web.address=:80"
+      - "--entrypoints.web_secure.address=:443"
     labels:
       - "traefik.http.services.traefik.loadbalancer.server.port=8080"
     ports:
