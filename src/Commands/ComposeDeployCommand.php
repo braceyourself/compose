@@ -146,10 +146,11 @@ class ComposeDeployCommand extends Command
                     ->explode("\n")
                     ->filter(fn($container) => str($container)->contains('traefik'))
                     ->whenEmpty(function () {
+                        $compose_file = __DIR__ . '/../../traefik/docker-compose.yml';
 
-                        $compose_file = file_get_contents(__DIR__ . '/../../traefik/docker-compose.yml');
+                        $this->copyToServer("{$compose_file}", "{$this->path}/traefik.yml");
 
-                        $this->runRemoteScript("echo '{$compose_file}' | {$this->docker_compose} --file - up -d")
+                        $this->runRemoteScript("{$this->docker_compose} --file {$this->path}/traefik.yml up -d")
                             ->throw()
                             ->output();
 
