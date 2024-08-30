@@ -137,7 +137,7 @@ class ComposeDeployCommand extends Command
 
                 str($this->runRemoteScript("docker network ls --format '{{.Name}}'")->output())
                     ->explode("\n")
-                    ->filter(fn($network) => str($network)->contains('traefik'))
+                    ->filter(fn($network) => str($network)->contains('traefik_default'))
                     ->whenEmpty(function () {
                         $this->runRemoteScript("docker network create traefik_default", tty: true);
                     });
