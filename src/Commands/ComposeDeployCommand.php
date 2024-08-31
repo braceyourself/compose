@@ -133,30 +133,7 @@ class ComposeDeployCommand extends Command
 
             spin($this->setUpStorage(...), 'Setting up storage...');
 
-            spin(function () {
-
-                str($this->runRemoteScript("docker network ls --format '{{.Name}}'")->output())
-                    ->explode("\n")
-                    ->filter(fn($network) => str($network)->contains('traefik_default'))
-                    ->whenEmpty(function () {
-                        $this->runRemoteScript("docker network create traefik_default", tty: true);
-                    });
-
-                str($this->runRemoteScript("docker ps --format '{{.Image}}'")->throw()->output())
-                    ->explode("\n")
-                    ->filter(fn($container) => str($container)->contains('traefik'))
-                    ->whenEmpty(function () {
-                        $compose_file = __DIR__ . '/../../traefik/docker-compose.yml';
-
-                        $this->copyToServer("{$compose_file}", "{$this->path}/traefik.yml");
-
-                        $this->runRemoteScript("{$this->docker_compose} --file {$this->path}/traefik.yml up -d")
-                            ->throw()
-                            ->output();
-
-                    });
-
-            }, 'Setting up Traefik...');
+            spin($this->ensureTraefikIsSetup(...), 'Setting up Traefik...');
 
             spin(function () {
 
@@ -438,5 +415,37 @@ class ComposeDeployCommand extends Command
             sleep(2);
         } while ($this->getRemoteContainers($service)->every('Health', 'healthy'));
         Remote::run("{$this->docker_compose} exec nginx /usr/sbin/nginx -s reload")->throw();
+    }
+
+    private function ensureTraefikIsSetup()
+    {
+        $traefik_dir = "{$this->path}/traefik";
+        $compose_network = $this->runRemoteScript("source {$this->path}/.env && echo \$COMPOSE_NETWORK");
+
+        // create ~/treafik dir
+        $this->runRemoteScript("mkdir -p {$traefik_dir}")->throw();
+
+        // ensure traefik network exists
+        str($this->runRemoteScript("docker network ls --format '{{.Name}}'")->output())
+            ->explode("\n")
+            ->filter(fn($network) => str($network)->contains($compose_network))
+            ->whenEmpty(function () {
+                $this->runRemoteScript("docker network create \$COMPOSE_NETWORK", tty: true);
+            });
+
+        // ensure treafik is running
+        str($this->runRemoteScript("docker ps --format '{{.Image}}'")->throw()->output())
+            ->explode("\n")
+            ->filter(fn($container) => str($container)->contains($compose_network))
+            ->whenEmpty(function () use ($traefik_dir) {
+
+                // copy file to that dir
+                $this->copyToServer(__DIR__ . '/../../traefik/docker-compose.yml', "{$traefik_dir}/docker-compose.yml");
+
+                $this->runRemoteScript("cd $traefik_dir && {$this->docker_compose} up -d")
+                    ->throw()
+                    ->output();
+
+            });
     }
 }
