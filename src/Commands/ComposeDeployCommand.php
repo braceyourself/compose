@@ -127,6 +127,7 @@ class ComposeDeployCommand extends Command
                         return "--build-arg '{$value}'";
                     })->join(' '))->trim(' ');
 
+                $this->runRemoteComposeCommand("pull");
                 $this->runRemoteComposeCommand("build {$vite_args} php");
                 $this->runRemoteComposeCommand("build {$vite_args} nginx");
             }, 'Building images...');
