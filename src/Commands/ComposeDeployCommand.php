@@ -62,6 +62,12 @@ class ComposeDeployCommand extends Command
             }
 
             try {
+                Process::run('docker compose push php');
+                Process::run('docker compose push nginx');
+            } catch (\Throwable $e) {
+            }
+
+            try {
                 $this->runRemoteScript("docker --version")->throw();
             } catch (\Throwable $th) {
                 $this->error("Docker is not installed on the remote server. Please install docker and try again.");
