@@ -135,15 +135,14 @@ class ComposeDeployCommand extends Command
 
                 try {
                     $this->runRemoteComposeCommand("pull php");
-                }catch(\Throwable $e){
-                    $this->runRemoteComposeCommand("build {$vite_args} php")->throw();
-                }
+                }catch(\Throwable $e){}
 
                 try {
                     $this->runRemoteComposeCommand("pull nginx");
-                }catch(\Throwable $e){
-                    $this->runRemoteComposeCommand("build {$vite_args} nginx")->throw();
-                }
+                }catch(\Throwable $e){}
+
+                $this->runRemoteComposeCommand("build {$vite_args} php")->throw();
+                $this->runRemoteComposeCommand("build {$vite_args} nginx")->throw();
             }, 'Building images...');
 
             spin($this->setUpStorage(...), 'Setting up storage...');
