@@ -53,7 +53,7 @@ class ComposeDeployCommand extends Command
             }
 
             if ($this->option('down')) {
-                spin(fn() => $this->runRemoteComposeCommand("down -t0"),
+                spin(fn() => $this->runRemoteComposeCommand("down -t0")->throw(),
                     "Stopping services on {$this->host}..."
                 );
 
@@ -133,9 +133,10 @@ class ComposeDeployCommand extends Command
                         return "--build-arg '{$value}'";
                     })->join(' '))->trim(' ');
 
-                $this->runRemoteComposeCommand("pull");
-                $this->runRemoteComposeCommand("build {$vite_args} php");
-                $this->runRemoteComposeCommand("build {$vite_args} nginx");
+                $this->runRemoteComposeCommand("pull php");
+                $this->runRemoteComposeCommand("pull nginx");
+                $this->runRemoteComposeCommand("build {$vite_args} php")->throw();
+                $this->runRemoteComposeCommand("build {$vite_args} nginx")->throw();
             }, 'Building images...');
 
             spin($this->setUpStorage(...), 'Setting up storage...');
@@ -316,8 +317,7 @@ class ComposeDeployCommand extends Command
     {
         return Remote::forever()
             ->addOption('-t')
-            ->run("{$this->docker_compose} {$command}")
-            ->throw();
+            ->run("{$this->docker_compose} {$command}");
     }
 
     private function runRemoteScript(string $script, $tty = false, $timeout = 120)
