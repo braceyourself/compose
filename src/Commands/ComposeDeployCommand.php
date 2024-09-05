@@ -133,13 +133,8 @@ class ComposeDeployCommand extends Command
                         return "--build-arg '{$value}'";
                     })->join(' '))->trim(' ');
 
-                try {
-                    $this->runRemoteComposeCommand("pull php");
-                }catch(\Throwable $e){}
-
-                try {
-                    $this->runRemoteComposeCommand("pull nginx");
-                }catch(\Throwable $e){}
+                $this->runRemoteComposeCommand("pull php");
+                $this->runRemoteComposeCommand("pull nginx");
 
                 $this->runRemoteComposeCommand("build {$vite_args} php")->throw();
                 $this->runRemoteComposeCommand("build {$vite_args} nginx")->throw();
