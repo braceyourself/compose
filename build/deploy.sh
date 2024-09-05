@@ -5,11 +5,17 @@ set -e
 
 docker_compose=''
 
-if command -v docker compose &> /dev/null
-then
+docker compose
+if [ $? -eq 0 ]; then
     docker_compose="docker compose"
 else
     docker_compose="docker-compose"
+fi
+
+# throw if no compose
+if [ -z $docker_compose ]; then
+    echo "docker-compose not found"
+    exit 1
 fi
 
 service_name=php
