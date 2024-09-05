@@ -433,7 +433,7 @@ class ComposeDeployCommand extends Command
     private function ensureTraefikIsSetup()
     {
         $traefik_dir = "{$this->path}/traefik";
-        $compose_network = $this->runRemoteScript("source {$this->path}/.env && echo \$COMPOSE_NETWORK");
+        $compose_network = $this->runRemoteScript("source {$this->path}/.env && echo \$COMPOSE_NETWORK")->output();
 
         // create ~/treafik dir
         $this->runRemoteScript("mkdir -p {$traefik_dir}")->throw();
