@@ -1,7 +1,6 @@
 #!/bin/bash
 
 # throw errors
-set -e
 
 docker_compose=''
 
@@ -11,6 +10,8 @@ if [ $? -eq 0 ]; then
 else
     docker_compose="docker-compose"
 fi
+
+set -e
 
 # throw if no compose
 if [ -z $docker_compose ]; then
