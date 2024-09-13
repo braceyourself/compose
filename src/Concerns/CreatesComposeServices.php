@@ -47,7 +47,7 @@ trait CreatesComposeServices
             'scheduler' => $this->schedulerServiceDefinition($config, $env),
             'database' => $this->databaseServiceDefinition($config, $env),
             'mailhog' => $this->mailhogServiceDefinition($config, $env),
-            'default' => $this->buildCustomService($config, $service_name, $env),
+            default => $this->buildCustomService($config, $service_name, $env),
         }];
     }
 
