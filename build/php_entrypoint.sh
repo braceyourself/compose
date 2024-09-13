@@ -14,13 +14,6 @@ if [[ "$SERVICE" == "scheduler" ]]; then
     done
 fi
 
-echo "DOMAIN $COMPOSE_DOMAIN"
-
-if [[ "$SERVICE" == "reverb" ]]; then
-  echo "Starting reverb service";
-  php /var/www/html/artisan reverb:start --host="0.0.0.0" --hostname="reverb";
-fi
-
 if [[ "$SERVICE" == "horizon" ]]; then
   php /var/www/html/artisan horizon;
 fi
