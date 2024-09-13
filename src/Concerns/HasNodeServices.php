@@ -51,7 +51,7 @@ trait HasNodeServices
             'working_dir'    => '/var/www/html',
             'command'        => 'npm run dev -- --host --port=80',
             'labels'         => [
-                'traefik.http.services.${COMPOSE_ROUTER}.loadbalancer.server.port=80',
+                'traefik.http.services.hmr-${COMPOSE_ROUTER}.loadbalancer.server.port=80',
             ],
             'env_file'       => ['.env'],
             'volumes'        => ['./:/var/www/html'],
