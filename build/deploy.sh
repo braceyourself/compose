@@ -2,6 +2,7 @@
 
 # throw errors
 
+deploy_type=$1
 docker_compose=''
 
 docker compose
@@ -17,6 +18,12 @@ set -e
 if [ -z $docker_compose ]; then
     echo "docker-compose not found"
     exit 1
+fi
+
+# if deploy_type == 'restart'
+if [ "$deploy_type" == "restart" ]; then
+    $docker_compose up -d
+    exit 0
 fi
 
 service_name=php

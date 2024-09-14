@@ -160,7 +160,9 @@ class ComposeDeployCommand extends Command
                 // restart everything except php
                 Remote::run("{$this->docker_compose} up -d {$running_services} --force-recreate --remove-orphans -t0")->throw();
 
-                $this->runRemoteScript("chmod +x {$this->path}/app/build/deploy.sh && {$this->path}/app/build/deploy.sh")->throw();
+                $deploy_type = config('compose.services.php.container_name') ? 'restart' : 'rolling';
+
+                $this->runRemoteScript("chmod +x {$this->path}/app/build/deploy.sh && {$this->path}/app/build/deploy.sh {$deploy_type}")->throw();
 
             }, 'Starting services...');
 
