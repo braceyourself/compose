@@ -166,18 +166,20 @@ class ComposeDeployCommand extends Command
 
             }, 'Starting services...');
 
-            spin(function () {
-                // wait until database is healthy
-                while (true) {
-                    $database = json_decode(Remote::run("{$this->docker_compose} ps --format json database")->throw()->output());
+            if(config('compose.services.database')){
+                spin(function () {
+                    // wait until database is healthy
+                    while (true) {
+                        $database = json_decode(Remote::run("{$this->docker_compose} ps --format json database")->throw()->output());
 
-                    if ($database->Health == 'healthy') {
-                        break;
+                        if ($database->Health == 'healthy') {
+                            break;
+                        }
+
+                        sleep(1);
                     }
-
-                    sleep(1);
-                }
-            }, 'Waiting for database...');
+                }, 'Waiting for database...');
+            }
 
             spin(function () {
                 $this->runArtisanCommand("migrate --force");
