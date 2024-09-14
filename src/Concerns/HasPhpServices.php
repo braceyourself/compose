@@ -24,7 +24,7 @@ trait HasPhpServices
                 'timeout'  => '10s',
                 'retries'  => 5,
             ],
-            'labels'      => $this->getLabels($config),
+            'labels'      => $this->getLabels($config, $env),
             'env_file'    => ['.env'],
             'working_dir' => '/var/www/html',
             'restart'     => 'always',
@@ -113,21 +113,21 @@ trait HasPhpServices
             ->sortDesc();
     }
 
-    private function getLabels($config, $env = 'local')
+    private function getLabels(&$config, $env = 'local')
     {
         $networks = collect(data_get($config, 'networks'));
-        $labels = data_get($config, 'labels');
+        $labels = data_get($config, 'labels', []);
+        unset($config['labels']);
 
         // if config.networks contains 'traefik'
         if (!$networks->contains('traefik')) {
-            return $labels;
+            return [];
         }
 
         return collect([
             'traefik.http.routers.${COMPOSE_ROUTER}.tls=' . ($env == 'production' ? 'true' : 'false'),
             'traefik.http.routers.${COMPOSE_ROUTER}.tls.certresolver=resolver',
-        ])->merge($labels)
-            ->toArray();
+        ])->merge($labels)->toArray();
 
     }
 }
