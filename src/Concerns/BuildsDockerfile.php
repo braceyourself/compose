@@ -76,6 +76,10 @@ trait BuildsDockerfile
         ARG VITE_PUSHER_SCHEME
         ARG VITE_PUSHER_APP_CLUSTER
         ARG VITE_PUSHER_APP_HOST
+        ARG VITE_REVERB_APP_KEY
+        ARG VITE_REVERB_HOST
+        ARG VITE_REVERB_PORT
+        ARG VITE_REVERB_SCHEME
         
         # set node user and group id
         RUN groupmod -og {$this->getGroupId()} node \
