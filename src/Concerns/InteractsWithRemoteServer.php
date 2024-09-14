@@ -12,6 +12,9 @@ trait InteractsWithRemoteServer
 {
     public function getRemoteEnv($name = null): Stringable
     {
+        $this->loadServerCredentials();
+        Remote::connect($this->host, $this->user);
+
         $env = Cache::store('array')->rememberForever(
             'compose-remote-env' . $this->user . $this->host . $this->path,
             fn() => str(
