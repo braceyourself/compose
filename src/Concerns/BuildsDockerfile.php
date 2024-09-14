@@ -27,10 +27,6 @@ trait BuildsDockerfile
 
     private function getDockerfile()
     {
-        $vite_args = $this->getViteArgs()
-            ->map(fn($line) => str($line)->before('=')->prepend('ARG '))
-            ->join("\n\t\t");
-
         return <<<DOCKERFILE
         FROM php:{$this->getPhpVersion()}-fpm AS php
         
@@ -72,7 +68,18 @@ trait BuildsDockerfile
         FROM node AS npm
         WORKDIR /var/www/html
         
-        {$vite_args}
+        ARG VITE_APP_NAME
+        ARG VITE_PUSHER_APP_KEY
+        ARG VITE_PUSHER_HOST
+        ARG VITE_PUSHER_PORT
+        ARG VITE_PUSHER_PORT_SECURE
+        ARG VITE_PUSHER_SCHEME
+        ARG VITE_PUSHER_APP_CLUSTER
+        ARG VITE_PUSHER_APP_HOST
+        ARG VITE_REVERB_APP_KEY
+        ARG VITE_REVERB_HOST
+        ARG VITE_REVERB_PORT
+        ARG VITE_REVERB_SCHEME
         
         # set node user and group id
         RUN groupmod -og {$this->getGroupId()} node \
