@@ -27,7 +27,9 @@ trait BuildsDockerfile
 
     private function getDockerfile()
     {
-        $vite_args = $this->getViteArgs()->map(fn($line) => str($line)->before('=')->append("\n")->prepend('ARG '));
+        $vite_args = $this->getViteArgs()
+            ->map(fn($line) => str($line)->before('=')->prepend('ARG '))
+            ->join("\n\t\t");
 
         return <<<DOCKERFILE
         FROM php:{$this->getPhpVersion()}-fpm AS php
