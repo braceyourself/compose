@@ -142,7 +142,10 @@ class ComposeDeployCommand extends Command
                 } catch (\Throwable $e) {}
 
                 $this->runRemoteComposeCommand("build {$vite_args} php")->throw();
-                $this->runRemoteComposeCommand("build {$vite_args} nginx")->throw();
+
+                if(config('compose.services.nginx') !== false){
+                    $this->runRemoteComposeCommand("build {$vite_args} nginx")->throw();
+                }
             }, 'Building images...');
 
             spin($this->setUpStorage(...), 'Setting up storage...');
