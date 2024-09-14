@@ -9,25 +9,26 @@ trait HasPhpServices
     private function phpServiceDefinition(array $config = [], $env = 'local'): array
     {
         return collect([
-            'image'          => '${COMPOSE_PHP_IMAGE}',
+            'image'       => '${COMPOSE_PHP_IMAGE}',
             //'container_name' => str(config('app.name'))->slug() . '-php',
-            'user'           => '${USER_ID}:${GROUP_ID}',
-            'volumes'        => $this->getPhpVolumes($env),
-            'build'          => [
+            'user'        => '${USER_ID}:${GROUP_ID}',
+            'volumes'     => $this->getPhpVolumes($env),
+            'build'       => [
                 'context'    => $env == 'production' ? './app' : '.',
                 'target'     => $env == 'production' ? 'production' : 'php',
                 'dockerfile' => './build/Dockerfile',
             ],
-            'healthcheck'    => [
+            'healthcheck' => [
                 'test'     => ['CMD', 'php', '-v'],
                 'interval' => '5s',
                 'timeout'  => '10s',
                 'retries'  => 5,
             ],
-            'env_file'       => ['.env'],
-            'working_dir'    => '/var/www/html',
-            'restart'        => 'always',
-            'environment'    => [
+            'labels'      => $this->getLabels($config),
+            'env_file'    => ['.env'],
+            'working_dir' => '/var/www/html',
+            'restart'     => 'always',
+            'environment' => [
                 'SERVICE' => 'php'
             ]
         ])->merge($config)
@@ -91,9 +92,7 @@ trait HasPhpServices
         if (file_exists($composer_json = base_path('composer.json'))) {
             $volumes = collect(data_get(json_decode(file_get_contents($composer_json), true), 'repositories', []))
                 ->where('type', 'path')
-                ->filter(function ($repo) {
-                    return str($repo['url'])->startsWith('/');
-                })
+                ->filter(fn($repo) => str($repo['url'])->startsWith('/'))
                 ->map->url
                 // map it directly to the container
                 ->map(fn($path) => "$path:$path")
@@ -112,5 +111,23 @@ trait HasPhpServices
             ->flatten()
             ->mapWithKeys(fn($version) => [$version => $version])
             ->sortDesc();
+    }
+
+    private function getLabels($config, $env = 'local')
+    {
+        $networks = collect(data_get($config, 'networks'));
+        $labels = data_get($config, 'labels');
+
+        // if config.networks contains 'traefik'
+        if (!$networks->contains('traefik')) {
+            return $labels;
+        }
+
+        return collect([
+            'traefik.http.routers.${COMPOSE_ROUTER}.tls=' . ($env == 'production' ? 'true' : 'false'),
+            'traefik.http.routers.${COMPOSE_ROUTER}.tls.certresolver=resolver',
+        ])->merge($labels)
+            ->toArray();
+
     }
 }
