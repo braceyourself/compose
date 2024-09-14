@@ -126,24 +126,21 @@ class ComposeDeployCommand extends Command
             }, 'Setting up app on remote server...');
 
             spin(function () {
-                $vite_args = str(collect($this->getRemoteEnv()->explode("\n"))
-                    ->filter(fn($line) => str($line)->startsWith('VITE_'))
-                    ->map(function ($value) {
-                        $value = str($value)->replace(' ', '\ ');
-                        return "--build-arg '{$value}'";
-                    })->join(' '))->trim(' ');
+                $vite_args = $this->getViteBuildArgStringForDockerCommand();
 
                 try {
                     $this->runRemoteComposeCommand("pull php");
-                } catch (\Throwable $e) {}
+                } catch (\Throwable $e) {
+                }
 
                 try {
                     $this->runRemoteComposeCommand("pull nginx");
-                } catch (\Throwable $e) {}
+                } catch (\Throwable $e) {
+                }
 
                 $this->runRemoteComposeCommand("build {$vite_args} php")->throw();
 
-                if(config('compose.services.nginx') !== false){
+                if (config('compose.services.nginx') !== false) {
                     $this->runRemoteComposeCommand("build {$vite_args} nginx")->throw();
                 }
             }, 'Building images...');
@@ -166,7 +163,7 @@ class ComposeDeployCommand extends Command
 
             }, 'Starting services...');
 
-            if(config('compose.services.database')){
+            if (config('compose.services.database')) {
                 spin(function () {
                     // wait until database is healthy
                     while (true) {

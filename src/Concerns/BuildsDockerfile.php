@@ -16,9 +16,9 @@ trait BuildsDockerfile
         return collect(data_get(json_decode(file_get_contents(base_path('composer.json'))), 'repositories'))
             ->filter(function ($repo) {
                 return $repo->type === 'path' && (
-                    str($repo->url)->startsWith('./')
-                    || file_exists(base_path(dirname($repo->url)))
-                );
+                        str($repo->url)->startsWith('./')
+                        || file_exists(base_path(dirname($repo->url)))
+                    );
             })->map(function ($repo) {
                 $dirname = dirname($repo->url);
                 return "COPY --chown=www-data:www-data {$dirname} {$dirname}";
@@ -27,6 +27,8 @@ trait BuildsDockerfile
 
     private function getDockerfile()
     {
+        $vite_args = $this->getViteArgs()->map(fn($line) => str($line)->before('=')->append("\n")->prepend('ARG '));
+
         return <<<DOCKERFILE
         FROM php:{$this->getPhpVersion()}-fpm AS php
         
@@ -68,18 +70,7 @@ trait BuildsDockerfile
         FROM node AS npm
         WORKDIR /var/www/html
         
-        ARG VITE_APP_NAME
-        ARG VITE_PUSHER_APP_KEY
-        ARG VITE_PUSHER_HOST
-        ARG VITE_PUSHER_PORT
-        ARG VITE_PUSHER_PORT_SECURE
-        ARG VITE_PUSHER_SCHEME
-        ARG VITE_PUSHER_APP_CLUSTER
-        ARG VITE_PUSHER_APP_HOST
-        ARG VITE_REVERB_APP_KEY
-        ARG VITE_REVERB_HOST
-        ARG VITE_REVERB_PORT
-        ARG VITE_REVERB_SCHEME
+        {$vite_args}
         
         # set node user and group id
         RUN groupmod -og {$this->getGroupId()} node \
@@ -121,6 +112,21 @@ trait BuildsDockerfile
     private function getPhpMemoryLimit()
     {
         return config('compose.services.php.memory_limit');
+    }
+
+    public function getViteArgs()
+    {
+        return collect($this->getRemoteEnv()->explode("\n"))
+            ->filter(fn($line) => str($line)->startsWith('VITE_'));
+    }
+
+    public function getViteBuildArgStringForDockerCommand()
+    {
+        return str($this->getViteArgs()->map(function ($value) {
+            $value = str($value)->replace(' ', '\ ');
+            return "--build-arg '{$value}'";
+        })->join(' '))
+            ->trim(' ');
     }
 
 }
