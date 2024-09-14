@@ -8,6 +8,7 @@ use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Process;
 use Braceyourself\Compose\Facades\Remote;
 use Braceyourself\Compose\Concerns\CreatesComposeServices;
+use Braceyourself\Compose\Concerns\InteractsWithRemoteServer;
 use function Laravel\Prompts\text;
 use function Laravel\Prompts\spin;
 use function Laravel\Prompts\error;
@@ -18,6 +19,7 @@ use function Laravel\Prompts\password;
 class ComposeDeployCommand extends Command
 {
     use CreatesComposeServices;
+    use InteractsWithRemoteServer;
 
     protected $signature = 'compose:deploy {--down} {--logs} {--host=} {--path=} {--user=}';
     protected $description = 'Deploy the services';
@@ -283,25 +285,6 @@ class ComposeDeployCommand extends Command
         Remote::appendToFile('.env', $res);
     }
 
-    private function getRemoteEnv($name = null): Stringable
-    {
-        $env = Cache::store('array')->rememberForever(
-            'compose-remote-env' . $this->user . $this->host . $this->path,
-            fn() => str(
-                Remote::run("cat .env")->throw()->output()
-            )
-        );
-
-        if ($name) {
-            return $env->explode("\n")
-                ->mapInto(Stringable::class)
-                ->filter(fn($line) => $line->startsWith($name))
-                ->map(fn($line) => $line->after('='))
-                ->first() ?? new Stringable();
-        }
-
-        return $env;
-    }
 
     private function setUpStorage()
     {

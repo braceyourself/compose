@@ -7,11 +7,13 @@ use Illuminate\Support\Facades\Process;
 use Illuminate\Support\Facades\Artisan;
 use Braceyourself\Compose\Facades\Compose;
 use Braceyourself\Compose\Concerns\CreatesComposeServices;
+use Braceyourself\Compose\Concerns\InteractsWithRemoteServer;
 use function Laravel\Prompts\multiselect;
 
 class ComposePublishCommand extends Command
 {
     use CreatesComposeServices;
+    use InteractsWithRemoteServer;
 
     protected $signature = 'compose:publish 
                             {--publish-path=}
