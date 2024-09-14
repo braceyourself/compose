@@ -23,8 +23,6 @@ class ComposePublishCommand extends Command
 
     public function handle()
     {
-        $this->loadServerCredentials();
-
         $publish_path = $this->option('publish-path') ?: '.';
         $compose_build_dir = __DIR__.'/../../build';
         $files = $this->option('files') ?: multiselect(
