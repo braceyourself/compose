@@ -90,15 +90,15 @@ trait CreatesComposeServices
     {
         return array_merge([
             'image'          => $this->getPhpImageName($env),
-            'container_name' => $service_name.'.${COMPOSE_DOMAIN}',
+//            'container_name' => $service_name.'.${COMPOSE_DOMAIN}',
             'restart'        => 'always',
-            'environment'    => [
-                'SERVICE' => $service_name
-            ],
-            'volumes'        => $this->getPhpVolumes($env),
+//            'environment'    => [
+//                'SERVICE' => $service_name
+//            ],
+//            'volumes'        => $this->getPhpVolumes($env),
             'user'           => '${USER_ID}:${GROUP_ID}',
             'env_file'       => ['.env'],
-            'entrypoint'     => '/var/www/html/artisan',
+//            'entrypoint'     => '/var/www/html/artisan',
         ], $config);
     }
 }
