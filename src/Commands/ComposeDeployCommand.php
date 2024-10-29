@@ -64,8 +64,10 @@ class ComposeDeployCommand extends Command
             }
 
             try {
-                Process::run('docker compose push php');
-                Process::run('docker compose push nginx');
+                spin(function () {
+                    Process::run('docker compose push php');
+                    Process::run('docker compose push nginx');
+                }, 'Pushing local docker-compose images...');
             } catch (\Throwable $e) {
             }
 
@@ -106,7 +108,6 @@ class ComposeDeployCommand extends Command
 
 
             spin(function () {
-
 
                 // copy app.tar
                 $this->copyToServer("{$this->build_path}/app.tar", "{$this->path}/app.tar");
