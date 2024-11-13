@@ -151,8 +151,7 @@ trait BuildsDockerfile
 
             return <<<EOF
             COPY {$base_name} .
-            RUN chmod +x {$base_name} \
-                && ./$base_name
+            RUN ./$base_name
             EOF;
         }
     }
