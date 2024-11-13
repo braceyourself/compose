@@ -49,6 +49,8 @@ trait BuildsDockerfile
         RUN chmod +x /usr/local/bin/entrypoint.sh \
             && chown -R www-data:www-data /var/www/html \
             && chown -R www-data:www-data /var/www
+        
+        {$this->getUserInstallScript()}
 
         USER www-data
         
@@ -136,6 +138,23 @@ trait BuildsDockerfile
             return "--build-arg '{$value}'";
         })->join(' '))
             ->trim(' ');
+    }
+
+    public function getUserInstallScript()
+    {
+        $script = config('compose.php_install_script');
+
+        if ($script) {
+            $base_name = basename($script);
+            // copy the file to the build dir so the dockerfile can access it
+            copy($script, base_path("build/$base_name"));
+
+            return <<<EOF
+            COPY {$script} .
+            RUN chmod +x {$base_name} \
+                && ./$base_name
+            EOF;
+        }
     }
 
 }
