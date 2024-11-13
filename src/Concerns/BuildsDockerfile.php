@@ -50,9 +50,9 @@ trait BuildsDockerfile
             && chown -R www-data:www-data /var/www/html \
             && chown -R www-data:www-data /var/www
         
-        {$this->getUserInstallScript()}
-
         USER www-data
+        
+        {$this->getUserInstallScript()}
         
         COPY composer.json composer.lock ./
         {$this->copyLocalRepositories()}
