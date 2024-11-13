@@ -150,7 +150,7 @@ trait BuildsDockerfile
             copy($script, base_path("build/$base_name"));
 
             return <<<EOF
-            COPY {$script} .
+            COPY {$base_name} .
             RUN chmod +x {$base_name} \
                 && ./$base_name
             EOF;
