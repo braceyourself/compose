@@ -22,7 +22,7 @@ trait BuildsDockerfile
             })->map(function ($repo) {
                 $dirname = dirname($repo->url);
                 return "COPY --chown=www-data:www-data {$dirname} {$dirname}";
-            })->join("\n");
+            })->unique()->join("\n");
     }
 
     private function getDockerfile()
