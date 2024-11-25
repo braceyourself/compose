@@ -12,7 +12,7 @@ trait HasPhpServices
             'image'       => '${COMPOSE_PHP_IMAGE}',
             //'container_name' => str(config('app.name'))->slug() . '-php',
             'user'        => '${USER_ID}:${GROUP_ID}',
-            'volumes'     => $this->getPhpVolumes($env),
+            'volumes'     => $this->getPhpVolumes($config, $env),
             'build'       => [
                 'context'    => $env == 'production' ? './app' : '.',
                 'target'     => $env == 'production' ? 'production' : 'php',
@@ -43,7 +43,7 @@ trait HasPhpServices
             'container_name' => str(config('app.name'))->slug() . '-scheduler',
             'user'           => '${USER_ID}:${GROUP_ID}',
             'restart'        => 'always',
-            'volumes'        => $this->getPhpVolumes($env),
+            'volumes'        => $this->getPhpVolumes($config, $env),
             'depends_on'     => ['php'],
             'environment'    => [
                 'SERVICE' => 'scheduler'
@@ -59,7 +59,7 @@ trait HasPhpServices
             'container_name' => str(config('app.name'))->slug() . '-horizon',
             'user'           => '${USER_ID}:${GROUP_ID}',
             'restart'        => 'always',
-            'volumes'        => $this->getPhpVolumes($env),
+            'volumes'        => $this->getPhpVolumes($config, $env),
             'depends_on'     => ['php'],
             'command'        => 'php artisan horizon',
             'environment'    => [
@@ -68,9 +68,11 @@ trait HasPhpServices
         ])->merge($config)->toArray();
     }
 
-    private function getPhpVolumes($env = 'local')
+    private function getPhpVolumes(array $config, $env = 'local')
     {
-        return match ($env) {
+        $config_volumes = data_get($config, 'volumes', []);
+
+        $volumes = match ($env) {
             'local' => $this->getLocalPhpVolumes(),
             default => [
                 '$HOME/.config/psysh:/var/www/.config/psysh',
@@ -78,6 +80,8 @@ trait HasPhpServices
                 './storage:/var/www/html/storage',
             ]
         };
+
+        return array_merge($volumes, $config_volumes);
     }
 
     private function getLocalPhpVolumes(): array
