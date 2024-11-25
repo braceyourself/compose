@@ -12,7 +12,6 @@ trait HasPhpServices
             'image'       => '${COMPOSE_PHP_IMAGE}',
             //'container_name' => str(config('app.name'))->slug() . '-php',
             'user'        => '${USER_ID}:${GROUP_ID}',
-            'volumes'     => $this->getPhpVolumes($config, $env),
             'build'       => [
                 'context'    => $env == 'production' ? './app' : '.',
                 'target'     => $env == 'production' ? 'production' : 'php',
@@ -24,7 +23,6 @@ trait HasPhpServices
                 'timeout'  => '10s',
                 'retries'  => 5,
             ],
-            'labels'      => $this->getLabels($config, $env),
             'env_file'    => ['.env'],
             'working_dir' => '/var/www/html',
             'restart'     => 'always',
@@ -32,6 +30,8 @@ trait HasPhpServices
                 'SERVICE' => 'php'
             ]
         ])->merge($config)
+            ->put('volumes', array_merge($this->getPhpVolumes($config, $env), data_get($config, 'volumes', [])))
+            ->put('labels', $this->getLabels($config, $env))
             ->except('extensions', 'packages', 'memory_limit', 'version')
             ->toArray();
     }
