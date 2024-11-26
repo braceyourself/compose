@@ -33,171 +33,53 @@ class ComposeDeployCommand extends Command
 
     public function handle()
     {
+        $start = now();
+
         try {
+            $this->setRepoUrl();
 
-            if (file_exists(base_path('.git'))) {
-                $this->repo_url = Process::run("git remote get-url origin")->output();
-            }
-
-            $start = now();
             $this->loadServerCredentials();
 
-            try {
-                spin(function () {
-                    Remote::connect($this->host, $this->user)
-                        ->run("mkdir -p $this->path")
-                        ->throw();
-                },
-                    "Logging in to server..."
-                );
-
-                Remote::path($this->path);
-
-            } catch (\Throwable $th) {
-                error(str($th->getMessage())->afterLast('==='));
-                warning("Could not login to server. Please check your credentials and try again.");
-                return;
-            }
+            $this->loginToRemoteServer();
 
             if ($this->option('down')) {
-                spin(fn() => $this->runRemoteComposeCommand("down -t0")->throw(),
-                    "Stopping services on {$this->host}..."
-                );
-
-                $this->info("Services stopped on {$this->host}");
+                $this->stopApp();
                 return;
             }
 
-            try {
-                spin(function () {
-                    Process::run('docker compose push php');
-                    Process::run('docker compose push nginx');
-                }, 'Pushing local docker-compose images...');
-            } catch (\Throwable $e) {
-            }
+            $this->tryPushingLocalImages();
 
-            try {
-                $this->runRemoteScript("docker --version")->throw();
-            } catch (\Throwable $th) {
-                $this->error("Docker is not installed on the remote server. Please install docker and try again.");
-                return;
-            }
+            $this->checkRemoteDockerInstallation();
 
+            $this->getDockerComposeExecutablePath();
 
-            // get compose command to use
-            try {
-                $this->runRemoteScript("docker-compose --version")->throw();
-                $this->docker_compose = "docker-compose";
-            } catch (\Throwable $th) {
-                $this->docker_compose = "docker compose";
-            }
+            $this->checkRemoveEnv();
 
-            match (spin(function () {
-                if (!Remote::fileExists(".env")) {
-                    return 'create';
-                } else if ($this->shouldUpdateRemoteEnvFile()) {
-                    return 'update';
-                }
+            $this->setupAppforDeploy();
 
-                return null;
-            }, 'Checking remote environment...')) {
-                'create' => $this->createRemoteEnv(),
-                'update' => $this->updateRemoteEnv(),
-                default => null
-            };
+            $this->setupAppOnServer();
 
-            spin(function () {
-                $this->createDockerfile();
-                $this->createAppTarball();
-            }, 'Packaging app for deployment...');
+            $this->buildAppOnRemote();
 
+            $this->setUpStorage();
 
-            spin(function () {
+            $this->ensureTraefikIsSetup();
 
-                $this->hasRepoUrl()
-                    ? $this->cloneRepoToServer()
-                    : $this->copyLocalAppToServer();
+            $this->startServices();
 
-                // overwrite app/build with compose build
-                $this->copyToServer($this->build_path, "{$this->path}/app");
+            $this->waitForDatabaseContainer();
 
-                // create docker-compose file
-                file_put_contents('/tmp/docker-compose.yml', $this->getComposeYaml('production'));
-                $this->copyToServer('/tmp/docker-compose.yml', $this->path);
+            $this->runMigrations();
 
-            }, 'Setting up app on remote server...');
+            $this->generateAppKey();
 
-            spin(function () {
-                $vite_args = $this->getViteBuildArgStringForDockerCommand();
-
-                try {
-                    $this->runRemoteComposeCommand("pull php");
-                } catch (\Throwable $e) {
-                }
-
-                try {
-                    $this->runRemoteComposeCommand("pull nginx");
-                } catch (\Throwable $e) {
-                }
-
-                $this->runRemoteComposeCommand("build {$vite_args} php")->throw();
-
-                if (config('compose.services.nginx') !== false) {
-                    $this->runRemoteComposeCommand("build {$vite_args} nginx")->throw();
-                }
-            }, 'Building images...');
-
-            spin($this->setUpStorage(...), 'Setting up storage...');
-
-            spin($this->ensureTraefikIsSetup(...), 'Setting up Traefik...');
-
-            spin(function () {
-
-                $running_services = str(Remote::run("{$this->docker_compose} config --services")->output())->explode("\n")
-                    ->filter(fn($s) => !in_array($s, ['php', 'nginx', 'database', 'redis']))->filter()->join(' ');
-
-                // restart everything except php
-                Remote::run("{$this->docker_compose} up -d {$running_services} --force-recreate --remove-orphans -t0")->throw();
-
-                $deploy_type = config('compose.services.php.container_name') ? 'restart' : 'rolling';
-
-                $this->runRemoteScript("chmod +x {$this->path}/app/build/deploy.sh && {$this->path}/app/build/deploy.sh {$deploy_type}")->throw();
-
-            }, 'Starting services...');
-
-            if (config('compose.services.database')) {
-                spin(function () {
-                    // wait until database is healthy
-                    while (true) {
-                        $database = json_decode(Remote::run("{$this->docker_compose} ps --format json database")->throw()->output());
-
-                        if ($database->Health == 'healthy') {
-                            break;
-                        }
-
-                        sleep(1);
-                    }
-                }, 'Waiting for database...');
-            }
-
-            spin(function () {
-                $this->runArtisanCommand("migrate --force");
-            }, 'Running migrations...');
-
-            spin(function () {
-                $this->runArtisanCommand("key:generate");
-            }, 'Generating app key...');
-
-            spin(function () {
-                $this->runArtisanCommand("optimize");
-            }, 'Optimizing...');
+            $this->optimizeApp();
 
             $this->info('Deployed in ' . now()->longAbsoluteDiffForHumans($start));
-
             $this->info("Your app is now live at " . $this->getRemoteEnv('APP_URL')->after('='));
 
         } finally {
-            spin($this->cleanUpDeploy(...), 'Cleaning up...');
+            $this->cleanUpDeploy();
         }
     }
 
@@ -288,22 +170,25 @@ class ComposeDeployCommand extends Command
 
     private function setUpStorage()
     {
-        $this->runRemoteScript(<<<BASH
-        cd {$this->path} 
-        
-        # ensure all app storage directories exist
-        mkdir -p storage/framework/{sessions,views,cache}
-        mkdir -p storage/app/public
-        mkdir -p storage/logs
+        spin(function () {
+
+            $this->runRemoteScript(<<<BASH
+            cd {$this->path} 
             
-        // directories should have 755 permissions
-        find storage -type d -exec chmod 755 -- {} +
-        
-        // files should have 644 permissions
-        find storage -type f -exec chmod 644 -- {} +
-        
-        BASH
-        );
+            # ensure all app storage directories exist
+            mkdir -p storage/framework/{sessions,views,cache}
+            mkdir -p storage/app/public
+            mkdir -p storage/logs
+                
+            // directories should have 755 permissions
+            find storage -type d -exec chmod 755 -- {} +
+            
+            // files should have 644 permissions
+            find storage -type f -exec chmod 644 -- {} +
+            
+            BASH);
+
+        }, 'Setting up storage...');
     }
 
     private function runRemoteComposeCommand(string $command)
@@ -407,32 +292,35 @@ class ComposeDeployCommand extends Command
 
     private function ensureTraefikIsSetup()
     {
-        $traefik_dir = "{$this->path}/traefik";
-        $compose_network = $this->runRemoteScript("source {$this->path}/.env && echo \$COMPOSE_NETWORK")->output();
+        spin(function(){
+            $traefik_dir = "{$this->path}/traefik";
+            $compose_network = $this->runRemoteScript("source {$this->path}/.env && echo \$COMPOSE_NETWORK")->output();
 
-        // create ~/treafik dir
-        $this->runRemoteScript("mkdir -p {$traefik_dir}")->throw();
+            // create ~/treafik dir
+            $this->runRemoteScript("mkdir -p {$traefik_dir}")->throw();
 
-        // ensure traefik network exists
-        str($this->runRemoteScript("docker network ls --format '{{.Name}}'")->output())
-            ->when(fn(Stringable $s) => !$s->contains($compose_network), function () {
-                $this->runRemoteScript("source {$this->path}/.env && docker network create \$COMPOSE_NETWORK", tty: true);
-            });
+            // ensure traefik network exists
+            str($this->runRemoteScript("docker network ls --format '{{.Name}}'")->output())
+                ->when(fn(Stringable $s) => !$s->contains($compose_network), function () {
+                    $this->runRemoteScript("source {$this->path}/.env && docker network create \$COMPOSE_NETWORK", tty: true);
+                });
 
-        // ensure treafik is running
-        str($this->runRemoteScript("docker ps --format '{{.Image}}'")->throw()->output())
-            ->explode("\n")
-            ->filter(fn($container) => str($container)->contains('traefik'))
-            ->whenEmpty(function () use ($traefik_dir) {
+            // ensure treafik is running
+            str($this->runRemoteScript("docker ps --format '{{.Image}}'")->throw()->output())
+                ->explode("\n")
+                ->filter(fn($container) => str($container)->contains('traefik'))
+                ->whenEmpty(function () use ($traefik_dir) {
 
-                // copy file to that dir
-                $this->copyToServer(__DIR__ . '/../../traefik/docker-compose.yml', "{$traefik_dir}/docker-compose.yml");
+                    // copy file to that dir
+                    $this->copyToServer(__DIR__ . '/../../traefik/docker-compose.yml', "{$traefik_dir}/docker-compose.yml");
 
-                $this->runRemoteScript("cd $traefik_dir && {$this->docker_compose} up -d")
-                    ->throw()
-                    ->output();
+                    $this->runRemoteScript("cd $traefik_dir && {$this->docker_compose} up -d")
+                        ->throw()
+                        ->output();
 
-            });
+                });
+
+        }, 'Setting up Traefik...');
     }
 
     private function cloneRepoToServer()
@@ -457,5 +345,195 @@ class ComposeDeployCommand extends Command
     private function hasRepoUrl()
     {
         return isset($this->repo_url);
+    }
+
+    private function loginToRemoteServer()
+    {
+        try {
+            spin(function () {
+                Remote::connect($this->host, $this->user)
+                    ->run("mkdir -p $this->path")
+                    ->throw();
+            },
+                "Logging in to server..."
+            );
+
+            Remote::path($this->path);
+
+        } catch (\Throwable $th) {
+            error(str($th->getMessage())->afterLast('==='));
+            warning("Could not login to server. Please check your credentials and try again.");
+            return;
+        }
+    }
+
+    private function stopApp()
+    {
+        spin(fn() => $this->runRemoteComposeCommand("down -t0")->throw(),
+            "Stopping services on {$this->host}..."
+        );
+
+        $this->info("Services stopped on {$this->host}");
+    }
+
+    private function tryPushingLocalImages()
+    {
+        try {
+            spin(function () {
+                Process::run('docker compose push php');
+                Process::run('docker compose push nginx');
+            }, 'Pushing local docker-compose images...');
+        } catch (\Throwable $e) {
+        }
+    }
+
+    private function checkRemoteDockerInstallation()
+    {
+        try {
+            $this->runRemoteScript("docker --version")->throw();
+        } catch (\Throwable $th) {
+            $this->error("Docker is not installed on the remote server. Please install docker and try again.");
+            return;
+        }
+    }
+
+    private function getDockerComposeExecutablePath()
+    {
+        // get compose command to use
+        try {
+            $this->runRemoteScript("docker-compose --version")->throw();
+            $this->docker_compose = "docker-compose";
+        } catch (\Throwable $th) {
+            $this->docker_compose = "docker compose";
+        }
+    }
+
+    private function checkRemoveEnv()
+    {
+        match (spin(function () {
+            if (!Remote::fileExists(".env")) {
+                return 'create';
+            } else if ($this->shouldUpdateRemoteEnvFile()) {
+                return 'update';
+            }
+
+            return null;
+        }, 'Checking remote environment...')) {
+            'create' => $this->createRemoteEnv(),
+            'update' => $this->updateRemoteEnv(),
+            default => null
+        };
+    }
+
+    private function setupAppforDeploy()
+    {
+        spin(function () {
+            $this->createDockerfile();
+            $this->createAppTarball();
+        }, 'Packaging app for deployment...');
+    }
+
+    private function setupAppOnServer()
+    {
+        spin(function () {
+
+            $this->hasRepoUrl()
+                ? $this->cloneRepoToServer()
+                : $this->copyLocalAppToServer();
+
+            // overwrite app/build with compose build
+            $this->copyToServer($this->build_path, "{$this->path}/app");
+
+            // create docker-compose file
+            file_put_contents('/tmp/docker-compose.yml', $this->getComposeYaml('production'));
+            $this->copyToServer('/tmp/docker-compose.yml', $this->path);
+
+        }, 'Setting up app on remote server...');
+    }
+
+    private function buildAppOnRemote()
+    {
+        spin(function () {
+            $vite_args = $this->getViteBuildArgStringForDockerCommand();
+
+            try {
+                $this->runRemoteComposeCommand("pull php");
+            } catch (\Throwable $e) {
+            }
+
+            try {
+                $this->runRemoteComposeCommand("pull nginx");
+            } catch (\Throwable $e) {
+            }
+
+            $this->runRemoteComposeCommand("build {$vite_args} php")->throw();
+
+            if (config('compose.services.nginx') !== false) {
+                $this->runRemoteComposeCommand("build {$vite_args} nginx")->throw();
+            }
+        }, 'Building images...');
+    }
+
+    private function startServices()
+    {
+        spin(function () {
+
+            $running_services = str(Remote::run("{$this->docker_compose} config --services")->output())->explode("\n")
+                ->filter(fn($s) => !in_array($s, ['php', 'nginx', 'database', 'redis']))->filter()->join(' ');
+
+            // restart everything except php
+            Remote::run("{$this->docker_compose} up -d {$running_services} --force-recreate --remove-orphans -t0")->throw();
+
+            $deploy_type = config('compose.services.php.container_name') ? 'restart' : 'rolling';
+
+            $this->runRemoteScript("chmod +x {$this->path}/app/build/deploy.sh && {$this->path}/app/build/deploy.sh {$deploy_type}")->throw();
+
+        }, 'Starting services...');
+    }
+
+    private function waitForDatabaseContainer()
+    {
+        if (config('compose.services.database')) {
+            spin(function () {
+                // wait until database is healthy
+                while (true) {
+                    $database = json_decode(Remote::run("{$this->docker_compose} ps --format json database")->throw()->output());
+
+                    if ($database->Health == 'healthy') {
+                        break;
+                    }
+
+                    sleep(1);
+                }
+            }, 'Waiting for database...');
+        }
+    }
+
+    private function runMigrations()
+    {
+        spin(function () {
+            $this->runArtisanCommand("migrate --force");
+        }, 'Running migrations...');
+    }
+
+    private function generateAppKey()
+    {
+        spin(function () {
+            $this->runArtisanCommand("key:generate");
+        }, 'Generating app key...');
+    }
+
+    private function optimizeApp()
+    {
+        spin(function () {
+            $this->runArtisanCommand("optimize");
+        }, 'Optimizing...');
+    }
+
+    private function setRepoUrl()
+    {
+        if (file_exists(base_path('.git'))) {
+            $this->repo_url = Process::run("git remote get-url origin")->output();
+        }
     }
 }
