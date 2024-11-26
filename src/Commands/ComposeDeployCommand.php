@@ -340,9 +340,6 @@ class ComposeDeployCommand extends Command
         // package the app and copy to the server
         $this->copyToServer("{$this->build_path}/app.tar", "{$this->path}/app.tar");
 
-        // delete local app.tar
-        unlink("{$this->build_path}/app.tar");
-
         // extract
         $this->runRemoteScript("rm -rf {$this->path}/app")->throw();
         $this->runRemoteScript("mkdir app && tar -xf app.tar -C app")->throw();
@@ -369,7 +366,8 @@ class ComposeDeployCommand extends Command
         } catch (\Throwable $th) {
             error(str($th->getMessage())->afterLast('==='));
             warning("Could not login to server. Please check your credentials and try again.");
-            return;
+
+            throw $th;
         }
     }
 
