@@ -138,7 +138,7 @@ class RemoteProcess extends PendingProcess
             $commands->push("cd {$this->remotePath}");
         }
 
-        $command = $commands->push($command)->filter()->join(' && ');
+        $command = $commands->push($command)->filter()->join('; ');
 
         return str($this->base_command)
             ->when($this->commandOptions, function ($s, $options) {
