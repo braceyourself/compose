@@ -16,13 +16,13 @@ trait BuildsDockerfile
         return collect(data_get(json_decode(file_get_contents(base_path('composer.json'))), 'repositories'))
             ->filter(function ($repo) {
                 return $repo->type === 'path' && (
-                    str($repo->url)->startsWith('./')
-                    || file_exists(base_path(dirname($repo->url)))
-                );
+                        str($repo->url)->startsWith('./')
+                        || file_exists(base_path(dirname($repo->url)))
+                    );
             })->map(function ($repo) {
                 $dirname = dirname($repo->url);
                 return "COPY --chown=www-data:www-data {$dirname} {$dirname}";
-            })->join("\n");
+            })->unique()->join("\n");
     }
 
     private function getDockerfile()
@@ -49,8 +49,10 @@ trait BuildsDockerfile
         RUN chmod +x /usr/local/bin/entrypoint.sh \
             && chown -R www-data:www-data /var/www/html \
             && chown -R www-data:www-data /var/www
-
+        
         USER www-data
+        
+        {$this->getUserInstallScript()}
         
         COPY composer.json composer.lock ./
         {$this->copyLocalRepositories()}
@@ -76,6 +78,10 @@ trait BuildsDockerfile
         ARG VITE_PUSHER_SCHEME
         ARG VITE_PUSHER_APP_CLUSTER
         ARG VITE_PUSHER_APP_HOST
+        ARG VITE_REVERB_APP_KEY
+        ARG VITE_REVERB_HOST
+        ARG VITE_REVERB_PORT
+        ARG VITE_REVERB_SCHEME
         
         # set node user and group id
         RUN groupmod -og {$this->getGroupId()} node \
@@ -117,6 +123,37 @@ trait BuildsDockerfile
     private function getPhpMemoryLimit()
     {
         return config('compose.services.php.memory_limit');
+    }
+
+    public function getViteArgs()
+    {
+        return collect($this->getRemoteEnv()->explode("\n"))
+            ->filter(fn($line) => str($line)->startsWith('VITE_'));
+    }
+
+    public function getViteBuildArgStringForDockerCommand()
+    {
+        return str($this->getViteArgs()->map(function ($value) {
+            $value = str($value)->replace(' ', '\ ');
+            return "--build-arg '{$value}'";
+        })->join(' '))
+            ->trim(' ');
+    }
+
+    public function getUserInstallScript()
+    {
+        $script = config('compose.php_install_script');
+
+        if ($script) {
+            $base_name = basename($script);
+            // copy the file to the build dir so the dockerfile can access it
+            copy($script, base_path("build/$base_name"));
+
+            return <<<EOF
+            COPY {$base_name} .
+            RUN ./$base_name
+            EOF;
+        }
     }
 
 }

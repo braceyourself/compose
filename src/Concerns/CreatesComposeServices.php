@@ -47,6 +47,7 @@ trait CreatesComposeServices
             'scheduler' => $this->schedulerServiceDefinition($config, $env),
             'database' => $this->databaseServiceDefinition($config, $env),
             'mailhog' => $this->mailhogServiceDefinition($config, $env),
+            default => $this->buildCustomService($config, $service_name, $env),
         }];
     }
 
@@ -83,5 +84,15 @@ trait CreatesComposeServices
         }
 
         return __DIR__ . '/../../build';
+    }
+
+    public function buildCustomService($config, $service_name, $env)
+    {
+        return array_merge([
+            'image'          => $this->getPhpImageName($env),
+            'restart'        => 'always',
+            'user'           => '${USER_ID}:${GROUP_ID}',
+            'env_file'       => ['.env'],
+        ], $config);
     }
 }

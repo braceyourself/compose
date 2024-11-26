@@ -7,6 +7,11 @@ return [
     'profiles' => env('COMPOSE_PROFILES', 'local'),
 
     /***
+     * A shell script that will run when building the docker image
+     */
+    'php_install_script' => null,
+
+    /***
      * Override these settings to modify your project
      */
     'services' => [

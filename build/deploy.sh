@@ -1,15 +1,29 @@
 #!/bin/bash
 
 # throw errors
-set -e
 
+deploy_type=$1
 docker_compose=''
 
-if command -v docker compose &> /dev/null
-then
+docker compose
+if [ $? -eq 0 ]; then
     docker_compose="docker compose"
 else
     docker_compose="docker-compose"
+fi
+
+set -e
+
+# throw if no compose
+if [ -z $docker_compose ]; then
+    echo "docker-compose not found"
+    exit 1
+fi
+
+# if deploy_type == 'restart'
+if [ "$deploy_type" == "restart" ]; then
+    $docker_compose up -d
+    exit 0
 fi
 
 service_name=php

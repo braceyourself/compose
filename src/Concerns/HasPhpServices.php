@@ -9,28 +9,29 @@ trait HasPhpServices
     private function phpServiceDefinition(array $config = [], $env = 'local'): array
     {
         return collect([
-            'image'          => '${COMPOSE_PHP_IMAGE}',
+            'image'       => '${COMPOSE_PHP_IMAGE}',
             //'container_name' => str(config('app.name'))->slug() . '-php',
-            'user'           => '${USER_ID}:${GROUP_ID}',
-            'volumes'        => $this->getPhpVolumes($env),
-            'build'          => [
+            'user'        => '${USER_ID}:${GROUP_ID}',
+            'build'       => [
                 'context'    => $env == 'production' ? './app' : '.',
                 'target'     => $env == 'production' ? 'production' : 'php',
                 'dockerfile' => './build/Dockerfile',
             ],
-            'healthcheck'    => [
+            'healthcheck' => [
                 'test'     => ['CMD', 'php', '-v'],
                 'interval' => '5s',
                 'timeout'  => '10s',
                 'retries'  => 5,
             ],
-            'env_file'       => ['.env'],
-            'working_dir'    => '/var/www/html',
-            'restart'        => 'always',
-            'environment'    => [
+            'env_file'    => ['.env'],
+            'working_dir' => '/var/www/html',
+            'restart'     => 'always',
+            'environment' => [
                 'SERVICE' => 'php'
             ]
         ])->merge($config)
+            ->put('volumes', array_merge($this->getPhpVolumes($config, $env), data_get($config, 'volumes', [])))
+            ->put('labels', $this->getLabels($config, $env))
             ->except('extensions', 'packages', 'memory_limit', 'version')
             ->toArray();
     }
@@ -42,7 +43,7 @@ trait HasPhpServices
             'container_name' => str(config('app.name'))->slug() . '-scheduler',
             'user'           => '${USER_ID}:${GROUP_ID}',
             'restart'        => 'always',
-            'volumes'        => $this->getPhpVolumes($env),
+            'volumes'        => $this->getPhpVolumes($config, $env),
             'depends_on'     => ['php'],
             'environment'    => [
                 'SERVICE' => 'scheduler'
@@ -58,7 +59,7 @@ trait HasPhpServices
             'container_name' => str(config('app.name'))->slug() . '-horizon',
             'user'           => '${USER_ID}:${GROUP_ID}',
             'restart'        => 'always',
-            'volumes'        => $this->getPhpVolumes($env),
+            'volumes'        => $this->getPhpVolumes($config, $env),
             'depends_on'     => ['php'],
             'command'        => 'php artisan horizon',
             'environment'    => [
@@ -67,9 +68,11 @@ trait HasPhpServices
         ])->merge($config)->toArray();
     }
 
-    private function getPhpVolumes($env = 'local')
+    private function getPhpVolumes(array $config, $env = 'local')
     {
-        return match ($env) {
+        $config_volumes = data_get($config, 'volumes', []);
+
+        $volumes = match ($env) {
             'local' => $this->getLocalPhpVolumes(),
             default => [
                 '$HOME/.config/psysh:/var/www/.config/psysh',
@@ -77,6 +80,8 @@ trait HasPhpServices
                 './storage:/var/www/html/storage',
             ]
         };
+
+        return array_merge($volumes, $config_volumes);
     }
 
     private function getLocalPhpVolumes(): array
@@ -91,9 +96,7 @@ trait HasPhpServices
         if (file_exists($composer_json = base_path('composer.json'))) {
             $volumes = collect(data_get(json_decode(file_get_contents($composer_json), true), 'repositories', []))
                 ->where('type', 'path')
-                ->filter(function ($repo) {
-                    return str($repo['url'])->startsWith('/');
-                })
+                ->filter(fn($repo) => str($repo['url'])->startsWith('/'))
                 ->map->url
                 // map it directly to the container
                 ->map(fn($path) => "$path:$path")
@@ -112,5 +115,23 @@ trait HasPhpServices
             ->flatten()
             ->mapWithKeys(fn($version) => [$version => $version])
             ->sortDesc();
+    }
+
+    private function getLabels(&$config, $env = 'local')
+    {
+        $networks = collect(data_get($config, 'networks'));
+        $labels = data_get($config, 'labels', []);
+        unset($config['labels']);
+
+        // if config.networks contains 'traefik'
+        if (!$networks->contains('traefik')) {
+            return [];
+        }
+
+        return collect([
+            'traefik.http.routers.${COMPOSE_ROUTER}.tls=' . ($env == 'production' ? 'true' : 'false'),
+            'traefik.http.routers.${COMPOSE_ROUTER}.tls.certresolver=resolver',
+        ])->merge($labels)->toArray();
+
     }
 }

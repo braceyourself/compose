@@ -8,6 +8,7 @@ use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Process;
 use Braceyourself\Compose\Facades\Remote;
 use Braceyourself\Compose\Concerns\CreatesComposeServices;
+use Braceyourself\Compose\Concerns\InteractsWithRemoteServer;
 use function Laravel\Prompts\text;
 use function Laravel\Prompts\spin;
 use function Laravel\Prompts\error;
@@ -18,6 +19,7 @@ use function Laravel\Prompts\password;
 class ComposeDeployCommand extends Command
 {
     use CreatesComposeServices;
+    use InteractsWithRemoteServer;
 
     protected $signature = 'compose:deploy {--down} {--logs} {--host=} {--path=} {--user=}';
     protected $description = 'Deploy the services';
@@ -53,7 +55,7 @@ class ComposeDeployCommand extends Command
             }
 
             if ($this->option('down')) {
-                spin(fn() => $this->runRemoteComposeCommand("down -t0"),
+                spin(fn() => $this->runRemoteComposeCommand("down -t0")->throw(),
                     "Stopping services on {$this->host}..."
                 );
 
@@ -62,8 +64,10 @@ class ComposeDeployCommand extends Command
             }
 
             try {
-                Process::run('docker compose push php');
-                Process::run('docker compose push nginx');
+                spin(function () {
+                    Process::run('docker compose push php');
+                    Process::run('docker compose push nginx');
+                }, 'Pushing local docker-compose images...');
             } catch (\Throwable $e) {
             }
 
@@ -105,7 +109,6 @@ class ComposeDeployCommand extends Command
 
             spin(function () {
 
-
                 // copy app.tar
                 $this->copyToServer("{$this->build_path}/app.tar", "{$this->path}/app.tar");
 
@@ -126,16 +129,23 @@ class ComposeDeployCommand extends Command
             }, 'Setting up app on remote server...');
 
             spin(function () {
-                $vite_args = str(collect($this->getRemoteEnv()->explode("\n"))
-                    ->filter(fn($line) => str($line)->startsWith('VITE_'))
-                    ->map(function ($value) {
-                        $value = str($value)->replace(' ', '\ ');
-                        return "--build-arg '{$value}'";
-                    })->join(' '))->trim(' ');
+                $vite_args = $this->getViteBuildArgStringForDockerCommand();
 
-                $this->runRemoteComposeCommand("pull");
-                $this->runRemoteComposeCommand("build {$vite_args} php");
-                $this->runRemoteComposeCommand("build {$vite_args} nginx");
+                try {
+                    $this->runRemoteComposeCommand("pull php");
+                } catch (\Throwable $e) {
+                }
+
+                try {
+                    $this->runRemoteComposeCommand("pull nginx");
+                } catch (\Throwable $e) {
+                }
+
+                $this->runRemoteComposeCommand("build {$vite_args} php")->throw();
+
+                if (config('compose.services.nginx') !== false) {
+                    $this->runRemoteComposeCommand("build {$vite_args} nginx")->throw();
+                }
             }, 'Building images...');
 
             spin($this->setUpStorage(...), 'Setting up storage...');
@@ -150,22 +160,26 @@ class ComposeDeployCommand extends Command
                 // restart everything except php
                 Remote::run("{$this->docker_compose} up -d {$running_services} --force-recreate --remove-orphans -t0")->throw();
 
-                $this->runRemoteScript("chmod +x {$this->path}/app/build/deploy.sh && {$this->path}/app/build/deploy.sh")->throw();
+                $deploy_type = config('compose.services.php.container_name') ? 'restart' : 'rolling';
+
+                $this->runRemoteScript("chmod +x {$this->path}/app/build/deploy.sh && {$this->path}/app/build/deploy.sh {$deploy_type}")->throw();
 
             }, 'Starting services...');
 
-            spin(function () {
-                // wait until database is healthy
-                while (true) {
-                    $database = json_decode(Remote::run("{$this->docker_compose} ps --format json database")->throw()->output());
+            if (config('compose.services.database')) {
+                spin(function () {
+                    // wait until database is healthy
+                    while (true) {
+                        $database = json_decode(Remote::run("{$this->docker_compose} ps --format json database")->throw()->output());
 
-                    if ($database->Health == 'healthy') {
-                        break;
+                        if ($database->Health == 'healthy') {
+                            break;
+                        }
+
+                        sleep(1);
                     }
-
-                    sleep(1);
-                }
-            }, 'Waiting for database...');
+                }, 'Waiting for database...');
+            }
 
             spin(function () {
                 $this->runArtisanCommand("migrate --force");
@@ -272,25 +286,6 @@ class ComposeDeployCommand extends Command
         Remote::appendToFile('.env', $res);
     }
 
-    private function getRemoteEnv($name = null): Stringable
-    {
-        $env = Cache::store('array')->rememberForever(
-            'compose-remote-env' . $this->user . $this->host . $this->path,
-            fn() => str(
-                Remote::run("cat .env")->throw()->output()
-            )
-        );
-
-        if ($name) {
-            return $env->explode("\n")
-                ->mapInto(Stringable::class)
-                ->filter(fn($line) => $line->startsWith($name))
-                ->map(fn($line) => $line->after('='))
-                ->first() ?? new Stringable();
-        }
-
-        return $env;
-    }
 
     private function setUpStorage()
     {
@@ -316,8 +311,7 @@ class ComposeDeployCommand extends Command
     {
         return Remote::forever()
             ->addOption('-t')
-            ->run("{$this->docker_compose} {$command}")
-            ->throw();
+            ->run("{$this->docker_compose} {$command}");
     }
 
     private function runRemoteScript(string $script, $tty = false, $timeout = 120)
@@ -347,19 +341,6 @@ class ComposeDeployCommand extends Command
         }
     }
 
-    private function loadServerCredentials(): void
-    {
-        $prompt = function ($text, $default = '', $hint = null) {
-            return text($text,
-                default: $default,
-                hint   : $hint ?? 'Publish and set the compose configuration to avoid this prompt. (artisan vendor:publish --tag=compose-config)'
-            );
-        };
-
-        $this->host = $this->option('host') ?: $this->getOrSetConfig('compose.deploy.host', fn() => $prompt('What is the hostname of the deployment server?'));
-        $this->user = $this->option('user') ?: $this->getOrSetConfig('compose.deploy.user', fn() => $prompt("Enter the user name for '{$this->host}'", exec('whoami')));
-        $this->path = $this->option('path') ?: $this->getOrSetConfig('compose.deploy.path', fn() => $prompt("Enter the path on {$this->host} this app should"));
-    }
 
     private function runArtisanCommand(string $command): void
     {
@@ -429,23 +410,21 @@ class ComposeDeployCommand extends Command
     private function ensureTraefikIsSetup()
     {
         $traefik_dir = "{$this->path}/traefik";
-        $compose_network = $this->runRemoteScript("source {$this->path}/.env && echo \$COMPOSE_NETWORK");
+        $compose_network = $this->runRemoteScript("source {$this->path}/.env && echo \$COMPOSE_NETWORK")->output();
 
         // create ~/treafik dir
         $this->runRemoteScript("mkdir -p {$traefik_dir}")->throw();
 
         // ensure traefik network exists
         str($this->runRemoteScript("docker network ls --format '{{.Name}}'")->output())
-            ->explode("\n")
-            ->filter(fn($network) => str($network)->contains($compose_network))
-            ->whenEmpty(function () {
-                $this->runRemoteScript("docker network create \$COMPOSE_NETWORK", tty: true);
+            ->when(fn(Stringable $s) => !$s->contains($compose_network), function () {
+                $this->runRemoteScript("source {$this->path}/.env && docker network create \$COMPOSE_NETWORK", tty: true);
             });
 
         // ensure treafik is running
         str($this->runRemoteScript("docker ps --format '{{.Image}}'")->throw()->output())
             ->explode("\n")
-            ->filter(fn($container) => str($container)->contains($compose_network))
+            ->filter(fn($container) => str($container)->contains('traefik'))
             ->whenEmpty(function () use ($traefik_dir) {
 
                 // copy file to that dir

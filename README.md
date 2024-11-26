@@ -34,9 +34,9 @@ Run the install command to set up node_modules and composer dependencies.
 compose COMMAND [options] [arguments]
 ```
 
-- **compose install**: Build the Docker containers
+- **compose install**: Uses docker containers to install composer and npm dependencies 
 - **compose build**: Build the Docker containers
-- **compose start**: Start the application
+- **compose start**: Start the application (docker-compose up -d)
 - **compose deploy**: Deploy the application to a remote server
 
 #### All other commands are passed to docker compose or artisan
