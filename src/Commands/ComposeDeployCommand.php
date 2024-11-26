@@ -334,7 +334,9 @@ class ComposeDeployCommand extends Command
             ->when(is_dir($local_path), fn($c) => $c->push('-r'))
             ->join(' ');
 
-        Process::run("scp {$options} {$local_path} {$this->user}@{$this->host}:{$path}")->throw();
+        Process::timeout(120)
+            ->run("scp {$options} {$local_path} {$this->user}@{$this->host}:{$path}")
+            ->throw();
     }
 
     private function ensureAppKeyIsSet(): void
