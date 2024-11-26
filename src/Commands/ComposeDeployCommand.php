@@ -28,11 +28,16 @@ class ComposeDeployCommand extends Command
     private mixed $user;
     private mixed $host;
     private mixed $path;
+    private string $repo_url = 'git@github.com:braceyourself/ethanbrace.com';
     private $docker_compose;
 
     public function handle()
     {
         try {
+
+            if (file_exists(base_path('.git'))) {
+                $this->repo_url = Process::run("git remote get-url origin")->output();
+            }
 
             $start = now();
             $this->loadServerCredentials();
@@ -110,14 +115,26 @@ class ComposeDeployCommand extends Command
             spin(function () {
 
                 // copy app.tar
-                $this->copyToServer("{$this->build_path}/app.tar", "{$this->path}/app.tar");
+                try {
 
-                // delete local app.tar
-                unlink("{$this->build_path}/app.tar");
+                    $this->copyToServer("{$this->build_path}/app.tar", "{$this->path}/app.tar");
 
-                // extract
-                $this->runRemoteScript("rm -rf {$this->path}/app")->throw();
-                $this->runRemoteScript("mkdir app && tar -xf app.tar -C app")->throw();
+                    // delete local app.tar
+                    unlink("{$this->build_path}/app.tar");
+
+                    // extract
+                    $this->runRemoteScript("rm -rf {$this->path}/app")->throw();
+                    $this->runRemoteScript("mkdir app && tar -xf app.tar -C app")->throw();
+
+                } catch (\Throwable $e) {
+                    if($this->repo_url){
+                        // try cloning directly to the server if the tarball fails to copy
+                        $this->runRemoteScript("rm -rf {$this->path}/app")->throw();
+                        $this->runRemoteScript("git clone {$this->repo_url} {$this->path}/app")->throw();
+                    }else{
+                        throw $e;
+                    }
+                }
 
                 // overwrite app/build with compose build
                 $this->copyToServer($this->build_path, "{$this->path}/app");
