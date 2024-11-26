@@ -315,8 +315,7 @@ class ComposeDeployCommand extends Command
 
     private function runRemoteScript(string $script, $tty = false, $timeout = 120)
     {
-        return Remote::timeout($timeout)
-            ->run($script);
+        return Remote::timeout($timeout)->run($script);
     }
 
     private function copyToServer(string $local_path, mixed $path, $spinner = false): void
@@ -438,8 +437,8 @@ class ComposeDeployCommand extends Command
 
     private function cloneRepoToServer()
     {
-        $this->runRemoteScript("rm -rf {$this->path}/app")->throw();
-        $this->runRemoteScript("git clone {$this->repo_url} {$this->path}/app")->throw();
+        $this->runRemoteScript("rm -rf app")->throw();
+        $this->runRemoteScript("git clone {$this->repo_url} app")->throw();
     }
 
     private function copyLocalAppToServer()
