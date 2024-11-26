@@ -449,8 +449,10 @@ class ComposeDeployCommand extends Command
         }, 'Setting up app on remote server...');
 
         spin(function () {
-            // remove tarball from build path
-            unlink("{$this->build_path}/app.tar");
+            if(file_exists("{$this->build_path}/app.tar")){
+                // remove tarball from build path
+                unlink("{$this->build_path}/app.tar");
+            }
 
             // overwrite app/build with compose build
             $this->copyToServer($this->build_path, "{$this->path}/app");
