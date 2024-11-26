@@ -326,8 +326,11 @@ class ComposeDeployCommand extends Command
     private function cloneRepoToServer()
     {
         $path = str($this->path)->trim()->value();
-        $this->runRemoteScript("rm -rf {$this->path}/app")->throw();
-        $this->runRemoteScript("git clone {$this->repo_url} {$path}/app")->throw();
+        $clone_path = pathinfo($this->repo_url, PATHINFO_FILENAME);
+        $this->runRemoteScript("rm -rf {$path}/app")->throw();
+        $this->runRemoteScript("rm -rf {$path}/{$clone_path}")->throw();
+        $this->runRemoteScript("git clone {$this->repo_url}")->throw();
+        $this->runRemoteScript("mv {$clone_path} app")->throw();
     }
 
     private function copyLocalAppToServer()
@@ -391,7 +394,9 @@ class ComposeDeployCommand extends Command
     private function checkRemoteDockerInstallation()
     {
         try {
-            $this->runRemoteScript("docker --version")->throw();
+            spin(function () {
+                $this->runRemoteScript("docker --version")->throw();
+            }, 'Checking remote docker installation...');
         } catch (\Throwable $th) {
             $this->error("Docker is not installed on the remote server. Please install docker and try again.");
             return;
