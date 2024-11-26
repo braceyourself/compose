@@ -447,6 +447,10 @@ class ComposeDeployCommand extends Command
                 ? $this->cloneRepoToServer()
                 : $this->copyLocalAppToServer();
 
+        }, 'Setting up app on remote server...');
+
+        spin(function () {
+
             // overwrite app/build with compose build
             $this->copyToServer($this->build_path, "{$this->path}/app");
 
@@ -454,7 +458,7 @@ class ComposeDeployCommand extends Command
             file_put_contents('/tmp/docker-compose.yml', $this->getComposeYaml('production'));
             $this->copyToServer('/tmp/docker-compose.yml', $this->path);
 
-        }, 'Setting up app on remote server...');
+        }, 'Copying build files to server...');
     }
 
     private function buildAppOnRemote()
