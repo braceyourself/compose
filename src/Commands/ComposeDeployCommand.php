@@ -114,27 +114,9 @@ class ComposeDeployCommand extends Command
 
             spin(function () {
 
-                // copy app.tar
-                try {
-
-                    $this->copyToServer("{$this->build_path}/app.tar", "{$this->path}/app.tar");
-
-                    // delete local app.tar
-                    unlink("{$this->build_path}/app.tar");
-
-                    // extract
-                    $this->runRemoteScript("rm -rf {$this->path}/app")->throw();
-                    $this->runRemoteScript("mkdir app && tar -xf app.tar -C app")->throw();
-
-                } catch (\Throwable $e) {
-                    if($this->repo_url){
-                        // try cloning directly to the server if the tarball fails to copy
-                        $this->runRemoteScript("rm -rf {$this->path}/app")->throw();
-                        $this->runRemoteScript("git clone {$this->repo_url} {$this->path}/app")->throw();
-                    }else{
-                        throw $e;
-                    }
-                }
+                $this->hasRepoUrl()
+                    ? $this->cloneRepoToServer()
+                    : $this->copyLocalAppToServer();
 
                 // overwrite app/build with compose build
                 $this->copyToServer($this->build_path, "{$this->path}/app");
@@ -452,5 +434,29 @@ class ComposeDeployCommand extends Command
                     ->output();
 
             });
+    }
+
+    private function cloneRepoToServer()
+    {
+        $this->runRemoteScript("rm -rf {$this->path}/app")->throw();
+        $this->runRemoteScript("git clone {$this->repo_url} {$this->path}/app")->throw();
+    }
+
+    private function copyLocalAppToServer()
+    {
+        // package the app and copy to the server
+        $this->copyToServer("{$this->build_path}/app.tar", "{$this->path}/app.tar");
+
+        // delete local app.tar
+        unlink("{$this->build_path}/app.tar");
+
+        // extract
+        $this->runRemoteScript("rm -rf {$this->path}/app")->throw();
+        $this->runRemoteScript("mkdir app && tar -xf app.tar -C app")->throw();
+    }
+
+    private function hasRepoUrl()
+    {
+        return isset($this->repo_url);
     }
 }
