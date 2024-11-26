@@ -335,6 +335,8 @@ class ComposeDeployCommand extends Command
 
     private function copyLocalAppToServer()
     {
+        $this->createAppTarball();
+
         // package the app and copy to the server
         $this->copyToServer("{$this->build_path}/app.tar", "{$this->path}/app.tar");
 
@@ -435,7 +437,6 @@ class ComposeDeployCommand extends Command
     {
         spin(function () {
             $this->createDockerfile();
-            $this->createAppTarball();
         }, 'Packaging app for deployment...');
     }
 
@@ -450,6 +451,8 @@ class ComposeDeployCommand extends Command
         }, 'Setting up app on remote server...');
 
         spin(function () {
+            // remove tarball from build path
+            unlink("{$this->build_path}/app.tar");
 
             // overwrite app/build with compose build
             $this->copyToServer($this->build_path, "{$this->path}/app");
