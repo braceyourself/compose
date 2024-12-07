@@ -55,7 +55,7 @@ trait CreatesComposeServices
     {
         return collect(config('compose.services'))
             ->mapWithKeys(fn($config, $service) => $this->getServiceDefinition($config, $service, $env))
-            ->filter();
+            ->filter(fn($config) => $config !== null && $config !== false);
     }
 
     private function getComposeYaml($env = 'local')
