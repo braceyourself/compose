@@ -3,11 +3,12 @@
 namespace Braceyourself\Compose\Concerns;
 
 use Illuminate\Support\Stringable;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Process;
 
 trait InteractsWithEnvFile
 {
-    private function localEnv($name = null): Stringable
+    private function localEnv($name = null, $throwWhenMissing = false): Stringable
     {
         $env = str(file_get_contents('.env'));
 
@@ -17,7 +18,7 @@ trait InteractsWithEnvFile
                 ->map->explode('=')
                 ->mapWithKeys(fn($l) => [$l->first() => str($l->last())])
                 ->filter()
-                ->filter(fn($l, $k) => str($k)->startsWith($name))
+                ->when($throwWhenMissing, fn(Collection $c) => $c->filter(fn($l, $k) => str($k)->startsWith($name)))
                 ->whenEmpty(fn() => throw new \Exception("{$name} not found in .env"))
                 ->first();
         }
