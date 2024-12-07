@@ -8,7 +8,7 @@ use Illuminate\Support\Facades\Process;
 
 trait InteractsWithEnvFile
 {
-    private function localEnv($name = null, $throwWhenMissing = false): Stringable
+    private function localEnv($name = null, $throwWhenMissing = false): ?Stringable
     {
         $env = str(file_get_contents('.env'));
 
