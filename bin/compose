@@ -167,12 +167,10 @@ case "$1" in
         echo 'installing node modules'
 
         # install the node modules
-       dockerCompose --docker run --rm npm npm install
+        dockerCompose --docker run --rm npm npm install
 
         # install the composer dependencies
-        dockerCompose --docker run --rm -it \
-          --entrypoint bash \
-          php -c "composer install"
+        dockerCompose --docker run --rm composer install
 
       ;;
     build)
