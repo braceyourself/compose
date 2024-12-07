@@ -23,8 +23,10 @@ trait HasNodeServices
                         <<<EOF
                         defineConfig({
                             server: { 
-                                hmr: 'hmr.{$this->getDomainName()}', 
-                                port: 80 
+                                hmr: {
+                                    host: 'hmr.{$this->getDomainName()}',
+                                    port: 80
+                                }, 
                             },
                         EOF
                     );
