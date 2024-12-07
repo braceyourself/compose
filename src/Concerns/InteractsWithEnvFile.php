@@ -18,8 +18,8 @@ trait InteractsWithEnvFile
                 ->map->explode('=')
                 ->mapWithKeys(fn($l) => [$l->first() => str($l->last())])
                 ->filter()
-                ->when($throwWhenMissing, fn(Collection $c) => $c->filter(fn($l, $k) => str($k)->startsWith($name)))
-                ->whenEmpty(fn() => throw new \Exception("{$name} not found in .env"))
+                ->filter(fn($l, $k) => str($k)->startsWith($name))
+                ->when($throwWhenMissing, fn(Collection $c) => $c->whenEmpty(fn() => throw new \Exception("{$name} not found in .env")))
                 ->first();
         }
 
