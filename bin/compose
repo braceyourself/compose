@@ -170,7 +170,7 @@ case "$1" in
         dockerCompose --docker run --rm npm npm install
 
         # install the composer dependencies
-        dockerCompose --docker run --rm php composer install
+#        dockerCompose --docker run --rm php composer install
 
       ;;
     build)
