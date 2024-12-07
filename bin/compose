@@ -165,10 +165,9 @@ publishFiles
 case "$1" in
     install)
         echo 'installing node modules'
+
         # install the node modules
-        dockerCompose --docker run --rm -it \
-          --entrypoint bash \
-          npm -c "npm install"
+       dockerCompose --docker run --rm npm npm install
 
         # install the composer dependencies
         dockerCompose --docker run --rm -it \
