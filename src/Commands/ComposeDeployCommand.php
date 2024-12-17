@@ -328,7 +328,7 @@ class ComposeDeployCommand extends Command
         $path = str($this->path)->trim()->value();
 
         $this->runRemoteScript("rm -rf {$path}/app")->throw();
-        $this->runRemoteScript(str("git clone {$this->repo_url} app")->replace("\n", " ")->value())->throw();
+        $this->runRemoteScript(str("git clone {$this->repo_url} app")->replace("\n", " ")->value(), 300)->throw();
     }
 
     private function copyLocalAppToServer()
