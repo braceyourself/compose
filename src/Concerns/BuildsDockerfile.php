@@ -105,12 +105,14 @@ trait BuildsDockerfile
          
         ### production
         FROM php AS production
+        RUN rm -rf /var/www/html/public/build
         COPY --from=npm /var/www/html/public /var/www/html/public
         
         ### nginx ###
         FROM nginx AS nginx
         COPY build/nginx.conf /etc/nginx/templates/default.conf.template
-        COPY --from=production /var/www/html/public /var/www/html/public
+        RUN rm -rf /var/www/html/public/build
+        COPY --from=npm /var/www/html/public /var/www/html/public
         RUN ln -sf /var/www/html/storage/app/public /var/www/html/public/storage
         
         DOCKERFILE;
