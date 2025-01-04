@@ -30,8 +30,8 @@ trait BuildsDockerfile
         return <<<DOCKERFILE
         FROM php:{$this->getPhpVersion()}-fpm AS php
         
-        USER_ID={$this->getUserId()}
-        GROUP_ID={$this->getGroupId()}
+        ARG USER_ID={$this->getUserId()}
+        ARG GROUP_ID={$this->getGroupId()}
         
         USER root
         ENV PATH="/var/www/.composer/vendor/bin:\$PATH"
