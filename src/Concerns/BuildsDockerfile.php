@@ -30,6 +30,9 @@ trait BuildsDockerfile
         return <<<DOCKERFILE
         FROM php:{$this->getPhpVersion()}-fpm AS php
         
+        USER_ID={$this->getUserId()}
+        GROUP_ID={$this->getGroupId()}
+        
         USER root
         ENV PATH="/var/www/.composer/vendor/bin:\$PATH"
         ENV PHP_MEMORY_LIMIT={$this->getPhpMemoryLimit()}
@@ -42,8 +45,8 @@ trait BuildsDockerfile
             && chmod +x /usr/local/bin/install-php-extensions && sync
             
         RUN install-php-extensions {$this->getExtList()} @composer \
-            && groupmod -og {$this->getGroupId()} www-data \
-            && usermod -u {$this->getUserId()} www-data
+            && groupmod -og \$GROUP_ID www-data \
+            && usermod -u \$USER_ID www-data
             
         COPY build/php_entrypoint.sh /usr/local/bin/entrypoint.sh
         RUN chmod +x /usr/local/bin/entrypoint.sh \
@@ -83,9 +86,12 @@ trait BuildsDockerfile
         ARG VITE_REVERB_PORT
         ARG VITE_REVERB_SCHEME
         
+        ARG USER_ID={$this->getUserId()}
+        ARG GROUP_ID={$this->getGroupId()}
+        
         # set node user and group id
-        RUN groupmod -og {$this->getGroupId()} node \
-            && usermod -u {$this->getUserId()} -g {$this->getGroupId()} -d /var/www node \
+        RUN groupmod -og \$GROUP_ID node \
+            && usermod -u \$USER_ID -g \$GROUP_ID -d /var/www node \
             && chown -R node:node /var/www
         
         USER node
@@ -93,6 +99,7 @@ trait BuildsDockerfile
         COPY --from=php /var/www/html /var/www/html
         
         RUN rm -rf /var/www/.npm \
+            && rm -rf /var/www/html/public/build \
             && npm install \
             && npm run build
          
