@@ -39,5 +39,7 @@ class WaitForDatabase extends Command
                 sleep(1);
             }
         }while(!$connected);
+
+        $this->info('Database connected!');
     }
 }
