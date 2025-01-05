@@ -57,20 +57,20 @@ class RunStartupCommands extends Command
         $this->info("Running startup commands for $service");
 
         foreach ($commands as $key => $command) {
-            $this->info("> $command");
+            $args = [];
 
             // handle 'command' => 'args',
             if($this->artisanCommandExists($key)){
                 $args = $command;
                 $command = $key;
-                $this->callSilent($command, $args);
-                continue;
             }
+
+            $this->info("> $command");
 
 
             // handle 'command',
             if($this->artisanCommandExists($command)){
-                $this->callSilent($command);
+                $this->callSilent($command, $args);
                 continue;
             }
 
