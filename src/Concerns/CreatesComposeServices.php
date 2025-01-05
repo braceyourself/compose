@@ -51,19 +51,30 @@ trait CreatesComposeServices
         }];
     }
 
-    private function getServices($env = 'local')
+    public function getServices($env = 'local')
     {
-        return collect(config('compose.services'))
+        // load the config directly from the config file so we can
+        // parse the contents with the given app_env value
+        $config = $this->loadConfigFromFile($env);
+
+        return collect(data_get($config, 'services'))
             ->mapWithKeys(fn($config, $service) => $this->getServiceDefinition($config, $service, $env))
             ->filter(fn($config) => $config !== null && $config !== false);
     }
 
-    private function getComposeYaml($env = 'local')
+    public function loadConfigFromFile($env = 'local')
+    {
+        putenv("APP_ENV={$env}");
+
+        return eval(str_replace('<?php', '', file_get_contents(config_path('compose.php'))));
+    }
+
+    public function getComposeYaml($env = 'local')
     {
         return Yaml::dump($this->getComposeConfig($env), Yaml::DUMP_OBJECT_AS_MAP);
     }
 
-    private function getComposeConfig($env = 'local')
+    public function getComposeConfig($env = 'local')
     {
         return [
             'services' => $this->getServices($env)->toArray(),

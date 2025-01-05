@@ -20,11 +20,13 @@ class ComposePublishCommand extends Command
     protected $signature = 'compose:publish 
                             {--publish-path=}
                             {--files=* : Files to publish}
-    ';
+                            {env? : The environment to publish to}';
+
     protected $description = 'Publish the docker compose files.';
 
     public function handle()
     {
+        $env = $this->argument('env') ?? 'local';
         $publish_path = $this->option('publish-path') ?: '.';
         $compose_build_dir = __DIR__ . '/../../build';
         $files = $this->hasOption('files')
@@ -51,7 +53,7 @@ class ComposePublishCommand extends Command
         }
 
         if (in_array('docker-compose.yml', $files)) {
-            file_put_contents("{$publish_path}/docker-compose.yml", $this->getComposeYaml());
+            file_put_contents("{$publish_path}/docker-compose.yml", $this->getComposeYaml($env));
         }
 
         if(!$this->localEnv('COMPOSE_PROFILES')){

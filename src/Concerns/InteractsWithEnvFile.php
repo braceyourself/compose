@@ -10,6 +10,14 @@ trait InteractsWithEnvFile
 {
     private function localEnv($name = null, $throwWhenMissing = false): ?Stringable
     {
+        if(!file_exists('.env') && file_exists('.env.example')){
+            // copy from .env.example
+            copy('.env.example', '.env');
+        }else if(!file_exists('.env')){
+            // create a new .env file
+            file_put_contents('.env', '');
+        }
+
         $env = str(file_get_contents('.env'));
 
         if ($name) {

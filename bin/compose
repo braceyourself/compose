@@ -81,7 +81,7 @@ publishFiles(){
     -w /var/www/html \
     -u "$(id -u):$(id -g)" \
     -e APP_ENV=${APP_ENV} \
-    php ./artisan compose:publish --files docker-compose.yml --files build
+    php ./artisan compose:publish --files docker-compose.yml --files build ${APP_ENV}
 
 }
 
