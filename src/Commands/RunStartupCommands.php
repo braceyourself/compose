@@ -68,18 +68,18 @@ class RunStartupCommands extends Command
             $this->info("> $command");
 
 
-            // handle 'command',
-            if($this->artisanCommandExists($command)){
-                $this->callSilent($command, $args);
-                continue;
-            }
-
-            // handle non artisan commands
             try {
+                // handle 'command',
+                if($this->artisanCommandExists($command)){
+                    $this->callSilent($command, $args);
+                    continue;
+                }
+
+                // handle non artisan commands
                 exec($command);
             } catch (\Exception $e) {
                 $this->error(" - Command Failed.");
-                report($e);
+                $this->error(" - ".$e->getMessage());
             }
         }
 
