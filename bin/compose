@@ -159,6 +159,12 @@ spin(){
 # Main
 #############################################
 
+# check $1 is deploy
+if [ "$1" == "deploy" ]; then
+  # set APP_ENV to production
+  export APP_ENV=production
+fi
+
 publishFiles
 
 # Determine the command to run...
