@@ -1,6 +1,6 @@
 <?php
 
-namespace Workbench\App\Console;
+namespace Braceyourself\Compose\Commands;
 
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Artisan;
