@@ -3,7 +3,7 @@
 php /var/www/html/artisan optimize;
 
 if [[ "$SERVICE" == "scheduler" ]]; then
-    php  /var/www/html/artisan compose:run-startup-commands $SERVICE
+    php  /var/www/html/artisan compose:run-startup-commands "$SERVICE"
 
     while true; do
       echo "Current time: " "$(date +"%r")"
@@ -21,9 +21,9 @@ elif [[ "$SERVICE" == "php" ]]; then
 
     #composer dump-autoload
 
-    php  /var/www/html/artisan compose:run-startup-commands $SERVICE
+    php  /var/www/html/artisan compose:run-startup-commands "$SERVICE"
 
     /usr/local/bin/docker-php-entrypoint -F;
 else
-    php  /var/www/html/artisan compose:run-startup-commands $SERVICE
+    php  /var/www/html/artisan compose:run-startup-commands "$SERVICE"
 fi

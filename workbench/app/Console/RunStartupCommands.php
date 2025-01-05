@@ -21,13 +21,32 @@ class RunStartupCommands extends Command
      */
     protected $description = 'Run the startup commands for a service';
 
+    protected $defaults = [
+        'php' => [
+            'config:clear',
+            'clear',
+            'clear-compiled',
+            'storage:link && chown www-data: public/storage',
+        ],
+        'horizon' => [
+            'horizon',
+        ],
+        'websockets' => [
+            'websockets:serve',
+        ],
+        'scheduler' => [
+            //
+        ],
+    ];
+
     /**
      * Execute the console command.
      */
     public function handle()
     {
         $service = $this->argument('service');
-        $commands = config("compose.startup_commands.{$service}");
+        $commands = config("compose.startup_commands.{$service}")
+            ?? $this->defaults[$service];
 
         if (empty($commands)) {
             return;
