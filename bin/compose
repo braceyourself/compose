@@ -206,6 +206,8 @@ case "$1" in
         ;;
     deploy)
         dockerCompose --docker run --rm -it \
+          -v "$(pwd):/var/www/html" \
+          -v "\$HOME:\$HOME" \
           --entrypoint=php \
           php /var/www/html/artisan \
           compose:deploy
