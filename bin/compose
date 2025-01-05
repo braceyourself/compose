@@ -207,7 +207,8 @@ case "$1" in
     deploy)
         dockerCompose --docker run --rm -it \
           -v "$(pwd):/var/www/html" \
-          -v "\$HOME:\$HOME" \
+          -v "$HOME:$HOME" \
+          -v "$HOME/.ssh:/var/www/.ssh" \
           --entrypoint=php \
           php /var/www/html/artisan \
           compose:deploy
