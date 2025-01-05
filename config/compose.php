@@ -18,7 +18,7 @@ return [
     'startup_commands' => [
         'php' => [
             'storage:link',
-            'migrate' => ['force' => true],
+            'migrate' => ['--force' => env('app_env') === 'production'],
             'config:clear',
             'clear',
             'clear-compiled',
