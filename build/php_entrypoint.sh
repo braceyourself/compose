@@ -3,6 +3,8 @@
 php /var/www/html/artisan optimize;
 
 if [[ "$SERVICE" == "scheduler" ]]; then
+    php  /var/www/html/artisan compose:run-startup-commands $SERVICE
+
     while true; do
       echo "Current time: " "$(date +"%r")"
       echo "running scheduled commands..."
@@ -10,28 +12,18 @@ if [[ "$SERVICE" == "scheduler" ]]; then
       php /var/www/html/artisan schedule:run;
 
       echo "sleeping for a minute..."
-      sleep 60;
+      sleep 60s
     done
-fi
 
-if [[ "$SERVICE" == "horizon" ]]; then
-  php /var/www/html/artisan horizon;
-fi
+elif [[ "$SERVICE" == "php" ]]; then
+    php /var/www/html/artisan storage:link
+    php /var/www/html/artisan migrate --force
 
-if [[ "$SERVICE" == "websockets" ]]; then
-  php /var/www/html/artisan websockets:serve;
-fi
+    #composer dump-autoload
 
-if [[ "$SERVICE" == "php" ]]; then
-  php /var/www/html/artisan storage:link
-  php /var/www/html/artisan migrate --force
+    php  /var/www/html/artisan compose:run-startup-commands $SERVICE
 
-  #composer dump-autoload
-
-  php artisan config:clear
-  php artisan clear
-  php artisan clear-compiled
-  php artisan storage:link && chown www-data: public/storage
-
-  /usr/local/bin/docker-php-entrypoint -F;
+    /usr/local/bin/docker-php-entrypoint -F;
+else
+    php  /var/www/html/artisan compose:run-startup-commands $SERVICE
 fi

@@ -12,6 +12,28 @@ return [
     'php_install_script' => null,
 
     /***
+     * run these commands when a php container starts
+     * The optimize command is always run
+     */
+    'startup_commands' => [
+        'php' => [
+            'config:clear',
+            'clear',
+            'clear-compiled',
+            'storage:link && chown www-data: public/storage',
+        ],
+        'horizon' => [
+            'horizon',
+        ],
+        'websockets' => [
+            'websockets:serve',
+        ],
+        'scheduler' => [
+            //
+        ],
+    ],
+
+    /***
      * Override these settings to modify your project
      */
     'services' => [
