@@ -1,5 +1,9 @@
 #!/bin/bash
 
+# wait for database
+php /var/www/html/artisan compose:wait-for-database;
+
+
 echo "Optimizing Laravel application..."
 php /var/www/html/artisan optimize;
 

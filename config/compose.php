@@ -7,6 +7,11 @@ return [
     'profiles' => env('COMPOSE_PROFILES', 'local'),
 
     /***
+     * wait for the database to be ready before starting the application
+     */
+    'wait_for_database' => env('COMPOSE_WAIT_FOR_DATABASE', true),
+
+    /***
      * A shell script that will run when building the docker image
      */
     'php_install_script' => null,
