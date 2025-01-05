@@ -17,10 +17,12 @@ return [
      */
     'startup_commands' => [
         'php' => [
+            'storage:link',
+            'migrate' => ['force' => true],
             'config:clear',
             'clear',
             'clear-compiled',
-            'storage:link && chown www-data: public/storage',
+            'chown www-data: public/storage',
         ],
         'horizon' => [
             'horizon',

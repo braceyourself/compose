@@ -1,9 +1,12 @@
 #!/bin/bash
 
+echo "Optimizing Laravel application..."
 php /var/www/html/artisan optimize;
 
+echo "Running startup commands for $SERVICE..."
+php  /var/www/html/artisan compose:run-startup-commands "$SERVICE"
+
 if [[ "$SERVICE" == "scheduler" ]]; then
-    php  /var/www/html/artisan compose:run-startup-commands "$SERVICE"
 
     while true; do
       echo "Current time: " "$(date +"%r")"
@@ -16,14 +19,6 @@ if [[ "$SERVICE" == "scheduler" ]]; then
     done
 
 elif [[ "$SERVICE" == "php" ]]; then
-    php /var/www/html/artisan storage:link
-    php /var/www/html/artisan migrate --force
-
-    #composer dump-autoload
-
-    php  /var/www/html/artisan compose:run-startup-commands "$SERVICE"
-
+    echo "Starting PHP service..."
     /usr/local/bin/docker-php-entrypoint -F;
-else
-    php  /var/www/html/artisan compose:run-startup-commands "$SERVICE"
 fi

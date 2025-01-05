@@ -23,10 +23,12 @@ class RunStartupCommands extends Command
 
     protected $defaults = [
         'php' => [
+            'storage:link',
+            'migrate' => ['force' => true],
             'config:clear',
             'clear',
             'clear-compiled',
-            'storage:link && chown www-data: public/storage',
+            'chown www-data: public/storage',
         ],
         'horizon' => [
             'horizon',
@@ -54,14 +56,25 @@ class RunStartupCommands extends Command
 
         $this->info("Running startup commands for $service");
 
-        foreach ($commands as $command) {
+        foreach ($commands as $key => $command) {
             $this->info("> $command");
 
+            // handle 'command' => 'args',
+            if($this->artisanCommandExists($key)){
+                $args = $command;
+                $command = $key;
+                $this->callSilent($command, $args);
+                continue;
+            }
+
+
+            // handle 'command',
             if($this->artisanCommandExists($command)){
                 $this->callSilent($command);
                 continue;
             }
 
+            // handle non artisan commands
             try {
                 exec($command);
             } catch (\Exception $e) {
