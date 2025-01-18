@@ -85,7 +85,7 @@ trait CreatesComposeServices
                     'external' => true,
                     'name'     => '${COMPOSE_NETWORK}'
                 ],
-                ...config('compose.networks')
+                ...config('compose.networks', [])
 
             ]
         ];
