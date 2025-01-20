@@ -2,7 +2,7 @@
 
 # wait for database
 php /var/www/html/artisan compose:wait-for-database;
-php  /var/www/html/artisan compose:run-startup-commands "$SERVICE"
+php /var/www/html/artisan compose:run-startup-commands "$SERVICE"
 
 if [[ "$SERVICE" == "scheduler" ]]; then
 

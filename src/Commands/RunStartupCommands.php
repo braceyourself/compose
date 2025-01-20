@@ -27,7 +27,6 @@ class RunStartupCommands extends Command
             'storage:link',
             'migrate' => ['--force' => true],
             'config:clear',
-            'clear',
             'clear-compiled',
             'chown www-data: public/storage',
         ],
