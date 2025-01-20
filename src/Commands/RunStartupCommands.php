@@ -81,6 +81,9 @@ class RunStartupCommands extends Command
                 $this->error(" - Command Failed.");
                 $this->error(" - ".$e->getMessage());
             }
+
+            // pause for a second...
+            sleep(1);
         }
 
     }
