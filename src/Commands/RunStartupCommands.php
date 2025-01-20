@@ -23,6 +23,7 @@ class RunStartupCommands extends Command
 
     protected $defaults = [
         'php' => [
+            'optimize',
             'storage:link',
             'migrate' => ['--force' => true],
             'config:clear',
