@@ -67,6 +67,9 @@ class RunStartupCommands extends Command
 
             $this->info("> $command");
 
+            // pause for a second...
+            sleep(1);
+
 
             try {
                 // handle 'command',
@@ -81,9 +84,6 @@ class RunStartupCommands extends Command
                 $this->error(" - Command Failed.");
                 $this->error(" - ".$e->getMessage());
             }
-
-            // pause for a second...
-            sleep(1);
         }
 
     }
