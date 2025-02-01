@@ -21,7 +21,7 @@
     ],
     "require": {
 
-        "symfony/yaml": "^6.0",
+        "symfony/yaml": "^6.0|^7.0",
         "illuminate/support": "^10|^11",
         "illuminate/console": "^10|^11",
         "laravel/prompts": "^0.1"
