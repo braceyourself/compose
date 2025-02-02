@@ -181,6 +181,7 @@ if [ "$1" == "deploy" ]; then
 fi
 
 publishFiles
+source .env
 
 # Determine the command to run...
 case "$1" in
