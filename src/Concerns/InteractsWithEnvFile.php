@@ -134,6 +134,7 @@ trait InteractsWithEnvFile
             'DB_USERNAME' => "database.connections.".config('database.default').".username",
             'DB_PASSWORD' => "database.connections.".config('database.default').".password",
             'COMPOSE_PHP_IMAGE' => 'compose.services.php.image',
+            'COMPOSE_PHP_VERSION' => 'compose.services.php.version',
             default => str($key)->lower()->replace('compose_', 'compose.')->value()
         };
     }

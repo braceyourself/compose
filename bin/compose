@@ -206,7 +206,26 @@ case "$1" in
         shift 1
         setupTraefik
 
+
+        # check if node_modules is installed
+        if [ ! -d "node_modules" ]; then
+            echo -e "${YELLOW}\nInstalling node modules...${NC}"
+            dockerCompose --docker run --rm npm npm install
+        fi
+
+
         dockerCompose --docker "up -d --force-recreate --remove-orphans -t0 $*"
+
+        echo -ne "${YELLOW}Waiting for $COMPOSE_DOMAIN.${NC}"
+        #wait until domain returns 200
+        until curl --output /dev/null --silent --head --fail $COMPOSE_DOMAIN; do
+            echo -ne "${YELLOW}.${NC}"
+            sleep 1
+        done
+
+        # echo in green
+        echo -e "${GREEN}\nReady!${NC}"
+
         ;;
     up)
         shift 1

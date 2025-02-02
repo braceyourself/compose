@@ -60,15 +60,20 @@ class ComposePublishCommand extends Command
                 'custom'  => 'Choose my own setup'
             ], default: 'default');
 
+
+
+            $this->setEnv('COMPOSE_PHP_VERSION', $this->getDefaultPhpVersion());
             $this->setEnv('USER_ID', $user_id);
             $this->setEnv('GROUP_ID', $group_id);
             $this->setEnv('COMPOSE_NAME', $dir_name);
             $this->setEnv('COMPOSE_ROUTER', $dir_name);
             $this->setEnv('COMPOSE_PROFILES', 'local');
             $this->setEnv('COMPOSE_NETWORK', 'traefik_default');
-            $this->setEnv('COMPOSE_PHP_IMAGE', "ethanabrace/php:{$this->getPhpVersion()}", 'services.php.image');
+            $this->setEnv('COMPOSE_DOMAIN', $this->getComposeDomain());
+            $this->setEnv('COMPOSE_PHP_IMAGE', "ethanabrace/php:{$this->getPhpVersion()}");
+            $this->ensureViteServerSettings();
 
-            $connection_name = $this->setEnv('DB_CONNECTION', $this->getDatabaseConnectionName(), 'database.default');
+            $connection_name = $this->setEnv('DB_CONNECTION', $this->getDatabaseConnectionName());
 
             if ($connection_name !== 'sqlite') {
                 $this->setEnv('DB_HOST', $this->getDbHost($connection_name), "database.connections.{$connection_name}.host");
@@ -209,6 +214,37 @@ class ComposePublishCommand extends Command
         return function () use ($connection_name) {
             return text("Enter the database password", default: config("database.connections.{$connection_name}.password"));
         };
+    }
+
+    private function getDefaultPhpVersion()
+    {
+        if($this->setup_type == 'default'){
+            return $this->getPhpVersions()->first();
+        }
+
+        return fn() => select("Select PHP Version:", $this->getPhpVersions());
+    }
+
+    private function ensureViteServerSettings()
+    {
+        $needs_config = !$this->getViteConfig()->contains('server:');
+        if($this->setup_type == 'default' && $needs_config){
+            $this->addViteServerSettings();
+        }
+
+
+    }
+
+    private function getComposeDomain()
+    {
+        if($this->setup_type == 'default'){
+            return str(config('compose.name'))->slug() . ".localhost";
+        }
+
+        return fn() => text("What domain name would you like to use?",
+            default: str(config('compose.name'))->slug() . ".localhost",
+            hint: "This will be used to view your application in the browser"
+        );
     }
 
 }
