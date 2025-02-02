@@ -75,9 +75,7 @@ display_help(){
 
 #publish the compose file using ./artisan compose:publish
 publishFiles(){
-
-  echo "Publishing files"
-#  set -e
+  set -e
 
   docker run --rm -it \
     -u "$(id -u):$(id -g)" \
@@ -86,7 +84,16 @@ publishFiles(){
     -w /var/www/html \
     --env-file .env \
     -e APP_ENV=${APP_ENV} \
-    ethanabrace/php:8.3 /var/www/html/artisan compose:publish --files docker-compose.yml --files build ${APP_ENV}
+    ethanabrace/php:8.3 /var/www/html/artisan compose:publish \
+      --files docker-compose.yml \
+      --files build \
+      --env ${APP_ENV} \
+      --user_id "$(id -u)" \
+      --group_id "$(id -g)" \
+      "$(pwd)"
+
+    # sleep for a second
+    sleep 2
 }
 
 dockerCompose(){
@@ -119,6 +126,8 @@ dockerCompose(){
 }
 
 setupTraefik(){
+  source .env
+
   # if $COMPOSE_NETWORK is not set throw error
   if [ -z "$COMPOSE_NETWORK" ]; then
     echo "COMPOSE_NETWORK is not set. Please add it to your .env file."

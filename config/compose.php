@@ -1,10 +1,12 @@
 <?php
 
 return [
+    'name'     => env('COMPOSE_NAME'),
     'domain'   => env('COMPOSE_DOMAIN'),
     'user_id'  => env('COMPOSE_USER_ID', 1000),
     'group_id' => env('COMPOSE_GROUP_ID', 1000),
     'profiles' => env('COMPOSE_PROFILES', 'local'),
+    'setup_complete' => env('COMPOSE_SETUP_COMPLETE', false),
 
     /***
      * wait for the database to be ready before starting the application
