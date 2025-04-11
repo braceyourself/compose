@@ -8,7 +8,7 @@ use Illuminate\Support\Facades\Artisan;
 
 trait HasDatabaseServices
 {
-    private function databaseServiceDefinition($config = []): array
+    private function databaseServiceDefinition($config = [], $env = 'local'): array
     {
         return collect([
             'image'          => 'mysql',
@@ -29,7 +29,7 @@ trait HasDatabaseServices
             'volumes'        => [
                 './database/.data:/var/lib/mysql',
             ],
-            ...$this->getPortMappings()
+            ...$this->getPortMappings($env)
         ])->merge($config)
             // ignore ports mapping if empty
             ->filter(function ($v, $k) {
@@ -39,10 +39,12 @@ trait HasDatabaseServices
 
                 return !in_array($k, ['expose_on_port']);
             })
+            // don't map ports in production'
+            ->when($env == 'production', fn($c) => $c->filter(fn($v, $k) => $k !== 'ports'))
             ->toArray();
     }
 
-    private function getPortMappings(): array
+    private function getPortMappings($env = 'local'): array
     {
         if ($host_port = config('compose.services.database.expose_on_port')) {
             return [
