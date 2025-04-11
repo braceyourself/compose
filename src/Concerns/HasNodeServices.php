@@ -13,23 +13,11 @@ trait HasNodeServices
     private function npmServiceDefinition($config, $env = 'local'): array
     {
         if (file_exists(base_path('vite.config.js'))) {
-            $vite_config_content = str(file_get_contents(base_path('vite.config.js')));
             // match contents of defineConfig({ ... })
-            if (!$vite_config_content->contains('server:')) {
+            if (!$this->getViteConfig()->contains('server:')) {
                 warning("It looks like you're using Vite, but you haven't defined server settings in your vite.config.js file.");
                 if (confirm("Would you like to add server settings to your vite.config.js file?")) {
-                    $vite_config_content = $vite_config_content->replace(
-                        'defineConfig({',
-                        <<<EOF
-                        defineConfig({
-                            server: { 
-                                hmr: 'hmr.{$this->getDomainName()}', 
-                                port: 80 
-                            },
-                        EOF
-                    );
-
-                    file_put_contents(base_path('vite.config.js'), $vite_config_content);
+                    $this->addViteServerSettings();
 
                     info("HMR Server settings have been added to your vite.config.js file.");
                     warning("Be sure to review the settings to ensure they are correct.");
@@ -59,5 +47,26 @@ trait HasNodeServices
             'networks'       => ['default', 'traefik'],
             'profiles'       => ['local']
         ])->merge($config)->toArray();
+    }
+
+    protected function addViteServerSettings()
+    {
+        file_put_contents(base_path('vite.config.js'), $this->getViteConfig()->replace(
+            'defineConfig({',
+            <<<EOF
+            defineConfig({
+                server: { 
+                    hmr: {
+                        host: 'hmr.{$this->getDomainName()}',
+                        port: 80
+                    }, 
+                },
+            EOF
+        ));
+    }
+
+    public function getViteConfig()
+    {
+        return str(file_get_contents(base_path('vite.config.js')));
     }
 }

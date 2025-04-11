@@ -75,11 +75,25 @@ display_help(){
 
 #publish the compose file using ./artisan compose:publish
 publishFiles(){
+  set -e
+
   docker run --rm -it \
-    -v "$(pwd):/var/www/html" \
-    -w /var/www/html \
     -u "$(id -u):$(id -g)" \
-    php ./artisan compose:publish --files docker-compose.yml --files build
+    -v "$(pwd):/var/www/html" \
+    -v "$HOME:$HOME" \
+    -w /var/www/html \
+    --env-file .env \
+    -e APP_ENV=${APP_ENV} \
+    ethanabrace/php:8.3 /var/www/html/artisan compose:publish \
+      --files docker-compose.yml \
+      --files build \
+      --env ${APP_ENV} \
+      --user_id "$(id -u)" \
+      --group_id "$(id -g)" \
+      "$(pwd)"
+
+    # sleep for a second
+    sleep 2
 }
 
 dockerCompose(){
@@ -112,6 +126,8 @@ dockerCompose(){
 }
 
 setupTraefik(){
+  source .env
+
   # if $COMPOSE_NETWORK is not set throw error
   if [ -z "$COMPOSE_NETWORK" ]; then
     echo "COMPOSE_NETWORK is not set. Please add it to your .env file."
@@ -159,21 +175,24 @@ spin(){
 # Main
 #############################################
 
+# if command is 'deploy', set APP_ENV to production
+if [ "$1" == "deploy" ]; then
+  export APP_ENV=production
+fi
+
 publishFiles
+source .env
 
 # Determine the command to run...
 case "$1" in
     install)
         echo 'installing node modules'
+
         # install the node modules
-        dockerCompose --docker run --rm -it \
-          --entrypoint bash \
-          npm -c "npm install"
+        dockerCompose --docker run --rm npm npm install
 
         # install the composer dependencies
-        dockerCompose --docker run --rm -it \
-          --entrypoint bash \
-          php -c "composer install"
+#        dockerCompose --docker run --rm php composer install
 
       ;;
     build)
@@ -187,7 +206,26 @@ case "$1" in
         shift 1
         setupTraefik
 
+
+        # check if node_modules is installed
+        if [ ! -d "node_modules" ]; then
+            echo -e "${YELLOW}\nInstalling node modules...${NC}"
+            dockerCompose --docker run --rm npm npm install
+        fi
+
+
         dockerCompose --docker "up -d --force-recreate --remove-orphans -t0 $*"
+
+        echo -ne "${YELLOW}Waiting for $COMPOSE_DOMAIN.${NC}"
+        #wait until domain returns 200
+        until curl --output /dev/null --silent --head --fail $COMPOSE_DOMAIN; do
+            echo -ne "${YELLOW}.${NC}"
+            sleep 1
+        done
+
+        # echo in green
+        echo -e "${GREEN}\nReady!${NC}"
+
         ;;
     up)
         shift 1
@@ -201,6 +239,9 @@ case "$1" in
         ;;
     deploy)
         dockerCompose --docker run --rm -it \
+          -v "$(pwd):/var/www/html" \
+          -v "$HOME:$HOME" \
+          -v "$HOME/.ssh:/var/www/.ssh" \
           --entrypoint=php \
           php /var/www/html/artisan \
           compose:deploy

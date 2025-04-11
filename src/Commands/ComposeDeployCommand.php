@@ -328,7 +328,7 @@ class ComposeDeployCommand extends Command
         $path = str($this->path)->trim()->value();
 
         $this->runRemoteScript("rm -rf {$path}/app")->throw();
-        $this->runRemoteScript(str("git clone {$this->repo_url} app")->replace("\n", " ")->value())->throw();
+        $this->runRemoteScript(str("git clone {$this->repo_url} app")->replace("\n", " ")->value(), 300)->throw();
     }
 
     private function copyLocalAppToServer()
@@ -382,11 +382,26 @@ class ComposeDeployCommand extends Command
     {
         try {
             spin(function () {
-                Process::run('docker compose push php');
-                Process::run('docker compose push nginx');
+
+                $local_compose = $this->getLocalComposeBinary();
+
+                Process::run("$local_compose push php");
+                Process::run("$local_compose push nginx");
+
             }, 'Pushing local docker-compose images...');
         } catch (\Throwable $e) {
         }
+    }
+
+    public function getLocalComposeBinary()
+    {
+        try {
+            Process::run("docker-compose --version")->throw();
+        } catch (\Throwable $th) {
+            return "docker compose";
+        }
+
+        return "docker-compose";
     }
 
     private function checkRemoteDockerInstallation()

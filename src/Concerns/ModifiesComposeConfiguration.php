@@ -30,7 +30,7 @@ trait ModifiesComposeConfiguration
             fn() => $this->setEnv(
                 'COMPOSE_DOMAIN',
                 text("What domain name would you like to use?",
-                    default: str(pathinfo(base_path(), PATHINFO_FILENAME))->slug() . ".localhost",
+                    default: str(config('compose.name'))->slug() . ".localhost",
                     hint   : "This will be used to view your application in the browser",
                 )
             )

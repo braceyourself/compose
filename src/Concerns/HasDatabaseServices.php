@@ -13,7 +13,7 @@ trait HasDatabaseServices
         return collect([
             'image'          => 'mysql',
             'restart'        => 'always',
-            'container_name' => str(config('app.name'))->slug() . '-mysql',
+            'container_name' => str(config('compose.name'))->slug() . '-mysql',
             'healthcheck'    => [
                 'test'     => ['CMD', 'mysqladmin', 'ping', '-h', 'localhost'],
                 'interval' => '15s',

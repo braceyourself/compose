@@ -39,7 +39,7 @@ class DockerComposeProcess extends PendingProcess
     public function buildCommand($command): string
     {
         if (file_exists(base_path('docker-compose.yml'))) {
-            return "docker compose $command";
+            return "/usr/bin/docker compose $command";
         }
 
         $project_dir = base_path();
@@ -47,7 +47,7 @@ class DockerComposeProcess extends PendingProcess
 
         file_put_contents($compose_file, $this->getComposeYaml());
 
-        return "docker compose -f {$compose_file} --project-directory {$project_dir} $command";
+        return "/usr/bin/docker compose --file {$compose_file} --project-directory {$project_dir} $command";
     }
 
     public function buildArtisanCommand($command): string

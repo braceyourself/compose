@@ -30,6 +30,9 @@ trait BuildsDockerfile
         return <<<DOCKERFILE
         FROM php:{$this->getPhpVersion()}-fpm AS php
         
+        ARG USER_ID={$this->getUserId()}
+        ARG GROUP_ID={$this->getGroupId()}
+        
         USER root
         ENV PATH="/var/www/.composer/vendor/bin:\$PATH"
         ENV PHP_MEMORY_LIMIT={$this->getPhpMemoryLimit()}
@@ -42,8 +45,8 @@ trait BuildsDockerfile
             && chmod +x /usr/local/bin/install-php-extensions && sync
             
         RUN install-php-extensions {$this->getExtList()} @composer \
-            && groupmod -og {$this->getGroupId()} www-data \
-            && usermod -u {$this->getUserId()} www-data
+            && groupmod -og \$GROUP_ID www-data \
+            && usermod -u \$USER_ID www-data
             
         COPY build/php_entrypoint.sh /usr/local/bin/entrypoint.sh
         RUN chmod +x /usr/local/bin/entrypoint.sh \
@@ -51,9 +54,7 @@ trait BuildsDockerfile
             && chown -R www-data:www-data /var/www
         
         USER www-data
-        
-        {$this->getUserInstallScript()}
-        
+         
         COPY composer.json composer.lock ./
         {$this->copyLocalRepositories()}
         RUN composer install --no-dev --no-interaction --no-progress --no-scripts
@@ -62,6 +63,8 @@ trait BuildsDockerfile
             && chown -R www-data:www-data /var/www/html/storage /var/www/html/bootstrap/cache \
             && chmod -R 775 /var/www/html/storage /var/www/html/bootstrap/cache \
             && composer run-script post-autoload-dump
+        
+        {$this->getUserInstallScript()}
         
         ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]
         
@@ -83,9 +86,12 @@ trait BuildsDockerfile
         ARG VITE_REVERB_PORT
         ARG VITE_REVERB_SCHEME
         
+        ARG USER_ID={$this->getUserId()}
+        ARG GROUP_ID={$this->getGroupId()}
+        
         # set node user and group id
-        RUN groupmod -og {$this->getGroupId()} node \
-            && usermod -u {$this->getUserId()} -g {$this->getGroupId()} -d /var/www node \
+        RUN groupmod -og \$GROUP_ID node \
+            && usermod -u \$USER_ID -g \$GROUP_ID -d /var/www node \
             && chown -R node:node /var/www
         
         USER node
@@ -93,17 +99,20 @@ trait BuildsDockerfile
         COPY --from=php /var/www/html /var/www/html
         
         RUN rm -rf /var/www/.npm \
+            && rm -rf /var/www/html/public/build \
             && npm install \
             && npm run build
          
         ### production
         FROM php AS production
+        RUN rm -rf /var/www/html/public/build
         COPY --from=npm /var/www/html/public /var/www/html/public
         
         ### nginx ###
         FROM nginx AS nginx
         COPY build/nginx.conf /etc/nginx/templates/default.conf.template
-        COPY --from=production /var/www/html/public /var/www/html/public
+        RUN rm -rf /var/www/html/public/build
+        COPY --from=npm /var/www/html/public /var/www/html/public
         RUN ln -sf /var/www/html/storage/app/public /var/www/html/public/storage
         
         DOCKERFILE;

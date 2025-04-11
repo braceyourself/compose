@@ -1,15 +1,46 @@
 <?php
 
 return [
+    'name'     => env('COMPOSE_NAME'),
     'domain'   => env('COMPOSE_DOMAIN'),
     'user_id'  => env('COMPOSE_USER_ID', 1000),
     'group_id' => env('COMPOSE_GROUP_ID', 1000),
     'profiles' => env('COMPOSE_PROFILES', 'local'),
+    'setup_complete' => env('COMPOSE_SETUP_COMPLETE', false),
+
+    /***
+     * wait for the database to be ready before starting the application
+     */
+    'wait_for_database' => env('COMPOSE_WAIT_FOR_DATABASE', true),
 
     /***
      * A shell script that will run when building the docker image
      */
     'php_install_script' => null,
+
+    /***
+     * run these commands when a php container starts
+     * The optimize command is always run
+     */
+    'startup_commands' => [
+        'php' => [
+            'storage:link',
+            'migrate' => ['--force' => env('app_env') === 'production'],
+            'config:clear',
+            'clear',
+            'clear-compiled',
+            'chown www-data: public/storage',
+        ],
+        'horizon' => [
+            'horizon',
+        ],
+        'websockets' => [
+            'websockets:serve',
+        ],
+        'scheduler' => [
+            //
+        ],
+    ],
 
     /***
      * Override these settings to modify your project

@@ -1,0 +1,6 @@
+services:
+  php:
+    image: ethanabrace/php:8.3
+    volumes:
+      - './:/var/www/html'
+      - '/usr/bin/docker:/usr/bin/docker'

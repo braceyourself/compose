@@ -51,19 +51,32 @@ trait CreatesComposeServices
         }];
     }
 
-    private function getServices($env = 'local')
+    public function getServices($env = 'local')
     {
-        return collect(config('compose.services'))
+        $config = $this->loadConfig($env);
+
+        return collect(data_get($config, 'services'))
             ->mapWithKeys(fn($config, $service) => $this->getServiceDefinition($config, $service, $env))
-            ->filter();
+            ->filter(fn($config) => $config !== null && $config !== false);
     }
 
-    private function getComposeYaml($env = 'local')
+    public function loadConfig($env = 'local')
+    {
+        putenv("APP_ENV={$env}");
+
+        if(file_exists(config_path('compose.php'))){
+            return eval(str_replace('<?php', '', file_get_contents(config_path('compose.php'))));
+        }
+
+        return config('compose');
+    }
+
+    public function getComposeYaml($env = 'local')
     {
         return Yaml::dump($this->getComposeConfig($env), Yaml::DUMP_OBJECT_AS_MAP);
     }
 
-    private function getComposeConfig($env = 'local')
+    public function getComposeConfig($env = 'local')
     {
         return [
             'services' => $this->getServices($env)->toArray(),
@@ -71,7 +84,8 @@ trait CreatesComposeServices
                 'traefik' => [
                     'external' => true,
                     'name'     => '${COMPOSE_NETWORK}'
-                ]
+                ],
+                ...config('compose.networks', [])
 
             ]
         ];
